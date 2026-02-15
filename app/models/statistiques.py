@@ -3,16 +3,15 @@
 import logging
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class StatistiquesModel:
+class StatistiquesModel(BaseModel):
     """Modele pour les statistiques de ventes."""
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "ventes"
 
     def obtenir_kpis(self, date_debut: str, date_fin: str) -> dict:
         """Retourne les KPIs pour une periode donnee.

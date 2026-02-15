@@ -3,16 +3,15 @@
 import logging
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class AttributProduitModel:
+class AttributProduitModel(BaseModel):
     """Modele pour les attributs personnalises des produits."""
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "attributs_produits"
 
     def lister_attributs_globaux(self) -> list[dict]:
         """Retourne les attributs globaux (categorie_id IS NULL)."""

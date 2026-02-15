@@ -10,20 +10,19 @@ import logging
 import sqlite3
 from typing import Optional
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class ProduitModel:
+class ProduitModel(BaseModel):
     """Modèle pour la gestion des produits.
 
     Gère la création, la modification, la suppression et la consultation
     des produits.
     """
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "produits"
 
     # ==================================================================
     # Produits

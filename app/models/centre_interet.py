@@ -10,20 +10,19 @@ from typing import Optional
 
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class CentreInteretModel:
+class CentreInteretModel(BaseModel):
     """Modèle pour la gestion des centres d'intérêt.
 
     Gère la création, la suppression et la consultation des centres
     d'intérêt, ainsi que les liaisons entre clients et centres d'intérêt.
     """
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "centres_interet"
 
     # ------------------------------------------------------------------
     # Centres d'intérêt

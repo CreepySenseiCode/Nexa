@@ -4,16 +4,15 @@ import logging
 from typing import Optional
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class EmailRecuModel:
+class EmailRecuModel(BaseModel):
     """Modele pour les emails recus."""
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "emails_recus"
 
     def lister_emails(self, adresse: str = None) -> list[dict]:
         """Retourne les emails recus, optionnellement filtres par adresse."""
@@ -43,11 +42,10 @@ class EmailRecuModel:
             return []
 
 
-class HistoriqueEmailModel:
+class HistoriqueEmailModel(BaseModel):
     """Modele pour l'historique des emails envoyes."""
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "historique_emails"
 
     def lister_historique(self) -> list[dict]:
         """Retourne l'historique des emails envoyes."""

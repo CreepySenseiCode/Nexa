@@ -65,7 +65,28 @@ class VenteView(QWidget):
         label_titre.setFont(font_titre)
         layout_principal.addWidget(label_titre)
 
-        # --- Section 1 : Selection du client ---
+        # --- Sections ---
+        layout_principal.addWidget(self._creer_section_client())
+        layout_principal.addWidget(self._creer_section_article())
+        layout_principal.addWidget(self._creer_section_panier())
+        layout_principal.addWidget(self._creer_section_paiement())
+        layout_principal.addWidget(self._creer_section_historique())
+
+        layout_principal.addStretch()
+
+        # Finaliser le scroll
+        scroll.setWidget(conteneur)
+        layout_self = QVBoxLayout(self)
+        layout_self.setContentsMargins(0, 0, 0, 0)
+        layout_self.addWidget(scroll)
+
+    # ------------------------------------------------------------------ #
+    #                   Helpers de construction UI                        #
+    # ------------------------------------------------------------------ #
+
+    def _creer_section_client(self):
+        """Cree et retourne le QGroupBox de selection du client."""
+
         groupe_client = QGroupBox("Client")
         layout_client = QVBoxLayout(groupe_client)
 
@@ -108,9 +129,18 @@ class VenteView(QWidget):
         self._widget_client_selectionne.setVisible(False)
         layout_client.addWidget(self._widget_client_selectionne)
 
-        layout_principal.addWidget(groupe_client)
+        return groupe_client
 
-        # --- Section 2 : Selection du produit ---
+    def _creer_section_article(self):
+        """Cree et retourne un QWidget contenant la selection de produit,
+        les details de l'article et le bouton 'Ajouter cet article'."""
+
+        section = QWidget()
+        layout_section = QVBoxLayout(section)
+        layout_section.setContentsMargins(0, 0, 0, 0)
+        layout_section.setSpacing(16)
+
+        # --- Selection du produit ---
         groupe_produit = QGroupBox("Produit")
         layout_produit = QVBoxLayout(groupe_produit)
 
@@ -158,9 +188,9 @@ class VenteView(QWidget):
         )
         layout_produit.addWidget(self.label_stock)
 
-        layout_principal.addWidget(groupe_produit)
+        layout_section.addWidget(groupe_produit)
 
-        # --- Section 3 : Details de l'article ---
+        # --- Details de l'article ---
         groupe_details = QGroupBox("Details de l'article")
         groupe_details.setStyleSheet(
             "QGroupBox { padding: 20px; margin-top: 10px; }"
@@ -232,7 +262,7 @@ class VenteView(QWidget):
         )
         layout_details.addRow("Sous-total :", self.label_sous_total)
 
-        layout_principal.addWidget(groupe_details)
+        layout_section.addWidget(groupe_details)
 
         # --- Bouton Ajouter l'article ---
         self.btn_ajouter_article = QPushButton("Ajouter cet article")
@@ -243,9 +273,13 @@ class VenteView(QWidget):
             "QPushButton:hover { background-color: #388E3C; }"
         )
         self.btn_ajouter_article.setCursor(Qt.CursorShape.PointingHandCursor)
-        layout_principal.addWidget(self.btn_ajouter_article)
+        layout_section.addWidget(self.btn_ajouter_article)
 
-        # --- Section 4 : Tableau des articles ---
+        return section
+
+    def _creer_section_panier(self):
+        """Cree et retourne le QGroupBox du tableau des articles (panier)."""
+
         groupe_articles = QGroupBox("Articles de la vente")
         layout_articles = QVBoxLayout(groupe_articles)
 
@@ -276,9 +310,18 @@ class VenteView(QWidget):
         )
         layout_articles.addWidget(self.label_aucun_article)
 
-        layout_principal.addWidget(groupe_articles)
+        return groupe_articles
 
-        # --- Section 5 : Code promotionnel ---
+    def _creer_section_paiement(self):
+        """Cree et retourne un QWidget contenant le code promo, le total,
+        les informations complementaires et les boutons d'action."""
+
+        section = QWidget()
+        layout_section = QVBoxLayout(section)
+        layout_section.setContentsMargins(0, 0, 0, 0)
+        layout_section.setSpacing(16)
+
+        # --- Code promotionnel ---
         groupe_promo = QGroupBox("Code promotionnel")
         layout_promo = QVBoxLayout(groupe_promo)
 
@@ -301,9 +344,9 @@ class VenteView(QWidget):
         self.label_code_promo.setStyleSheet("font-weight: bold;")
         layout_promo.addWidget(self.label_code_promo)
 
-        layout_principal.addWidget(groupe_promo)
+        layout_section.addWidget(groupe_promo)
 
-        # --- Section 6 : Total general ---
+        # --- Total general ---
         groupe_total = QGroupBox("Total")
         layout_total_box = QVBoxLayout(groupe_total)
 
@@ -314,9 +357,9 @@ class VenteView(QWidget):
         self.label_total.setAlignment(Qt.AlignCenter)
         layout_total_box.addWidget(self.label_total)
 
-        layout_principal.addWidget(groupe_total)
+        layout_section.addWidget(groupe_total)
 
-        # --- Section 7 : Date et notes ---
+        # --- Date et notes ---
         groupe_infos = QGroupBox("Informations complementaires")
         layout_infos = QFormLayout(groupe_infos)
         layout_infos.setSpacing(12)
@@ -336,7 +379,7 @@ class VenteView(QWidget):
         self.texte_notes.setPlaceholderText("Notes (optionnel)")
         layout_infos.addRow("Notes :", self.texte_notes)
 
-        layout_principal.addWidget(groupe_infos)
+        layout_section.addWidget(groupe_infos)
 
         # --- Barre de boutons d'action ---
         layout_boutons = QHBoxLayout()
@@ -382,9 +425,13 @@ class VenteView(QWidget):
         )
         layout_boutons.addWidget(self.btn_enregistrer)
 
-        layout_principal.addLayout(layout_boutons)
+        layout_section.addLayout(layout_boutons)
 
-        # --- Section 8 : Historique du client ---
+        return section
+
+    def _creer_section_historique(self):
+        """Cree et retourne le QGroupBox de l'historique des ventes du client."""
+
         groupe_historique = QGroupBox("Dernieres ventes du client")
         layout_historique = QVBoxLayout(groupe_historique)
 
@@ -415,15 +462,7 @@ class VenteView(QWidget):
 
         layout_historique.addWidget(self.table_historique)
 
-        layout_principal.addWidget(groupe_historique)
-
-        layout_principal.addStretch()
-
-        # Finaliser le scroll
-        scroll.setWidget(conteneur)
-        layout_self = QVBoxLayout(self)
-        layout_self.setContentsMargins(0, 0, 0, 0)
-        layout_self.addWidget(scroll)
+        return groupe_historique
 
     # ------------------------------------------------------------------ #
     #                        Connexion des signaux                        #
@@ -706,9 +745,9 @@ class VenteView(QWidget):
             self._calculer_total_general()
             return
 
-        from models.code_reduction import CodeReductionModel
-        model = CodeReductionModel()
-        resultat, message, type_erreur = model.verifier_code(code, self._client_id)
+        resultat, message, type_erreur = self.viewmodel.verifier_code_promo(
+            code, self._client_id
+        )
 
         if type_erreur is None:
             self._code_promo_valide = resultat
@@ -950,20 +989,13 @@ class VenteView(QWidget):
                 premier_vente_id = vente_id
 
             # Decrementer le stock
-            produit = produit_model.obtenir_produit(article['produit_id'])
-            if produit:
-                stock_actuel = produit.get('stock', 0) or 0
-                nouveau_stock = stock_actuel - article['quantite']
-                produit_model.modifier_produit(
-                    article['produit_id'],
-                    {'stock': nouveau_stock},
-                )
+            self.viewmodel.decrementer_stock(
+                article['produit_id'], article['quantite']
+            )
 
         # Enregistrer l'utilisation du code promo
         if self._code_promo_valide and premier_vente_id:
-            from models.code_reduction import CodeReductionModel
-            code_model = CodeReductionModel()
-            code_model.enregistrer_utilisation(
+            self.viewmodel.enregistrer_utilisation_code(
                 code_id=self._code_promo_valide['id'],
                 client_id=self._client_id,
                 vente_id=premier_vente_id,

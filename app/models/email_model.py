@@ -4,16 +4,15 @@ import logging
 from typing import Optional
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class EmailModel:
+class EmailModel(BaseModel):
     """Modele pour les emails enregistres."""
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "mails_enregistres"
 
     def lister_mails(self) -> list[dict]:
         """Retourne tous les mails enregistres."""

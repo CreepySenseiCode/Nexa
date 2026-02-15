@@ -45,6 +45,63 @@ class StatistiquesView(QWidget):
         layout_principal.setContentsMargins(30, 20, 30, 30)
 
         # === EN-TETE AVEC NAVIGATION ===
+        layout_principal.addLayout(self._creer_section_periode())
+
+        # === CARTES KPI ===
+        layout_principal.addLayout(self._creer_section_kpis())
+
+        # === GRAPHIQUES PLOTLY ===
+        layout_principal.addLayout(self._creer_section_graphiques())
+
+        # === SECTION TOP ===
+        layout_principal.addLayout(self._creer_section_tops())
+
+        # === BOUTONS EXPORT ===
+        export_layout = QHBoxLayout()
+        export_layout.addStretch()
+
+        btn_export_csv = QPushButton("Exporter en CSV")
+        btn_export_csv.setStyleSheet(
+            "QPushButton { background-color: #4CAF50; color: white; "
+            "border: none; border-radius: 8px; padding: 10px 20px; "
+            "font-size: 12pt; font-weight: 600; }"
+            "QPushButton:hover { background-color: #388E3C; }"
+        )
+        btn_export_csv.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_export_csv.clicked.connect(
+            lambda: QMessageBox.information(
+                self, "Info", "Export CSV a venir."
+            )
+        )
+        export_layout.addWidget(btn_export_csv)
+
+        btn_export_pdf = QPushButton("Exporter en PDF")
+        btn_export_pdf.setStyleSheet(
+            "QPushButton { background-color: #F44336; color: white; "
+            "border: none; border-radius: 8px; padding: 10px 20px; "
+            "font-size: 12pt; font-weight: 600; }"
+            "QPushButton:hover { background-color: #D32F2F; }"
+        )
+        btn_export_pdf.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_export_pdf.clicked.connect(
+            lambda: QMessageBox.information(
+                self, "Info", "Export PDF a venir."
+            )
+        )
+        export_layout.addWidget(btn_export_pdf)
+
+        layout_principal.addLayout(export_layout)
+
+        layout_principal.addStretch()
+
+        scroll.setWidget(conteneur)
+
+        layout_self = QVBoxLayout(self)
+        layout_self.setContentsMargins(0, 0, 0, 0)
+        layout_self.addWidget(scroll)
+
+    def _creer_section_periode(self) -> QHBoxLayout:
+        """Cree l'en-tete avec le titre et la navigation de periode."""
         header = QHBoxLayout()
 
         titre = QLabel("Statistiques")
@@ -129,9 +186,10 @@ class StatistiquesView(QWidget):
         self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         header.addWidget(self.btn_refresh)
 
-        layout_principal.addLayout(header)
+        return header
 
-        # === CARTES KPI ===
+    def _creer_section_kpis(self) -> QGridLayout:
+        """Cree les cartes KPI (chiffre d'affaires, ventes, clients, panier moyen)."""
         kpi_layout = QGridLayout()
         kpi_layout.setSpacing(15)
 
@@ -150,9 +208,10 @@ class StatistiquesView(QWidget):
             self._kpi_labels[titre_kpi] = label_valeur
             kpi_layout.addWidget(card, 0, i)
 
-        layout_principal.addLayout(kpi_layout)
+        return kpi_layout
 
-        # === GRAPHIQUES PLOTLY ===
+    def _creer_section_graphiques(self) -> QHBoxLayout:
+        """Cree la section des graphiques Plotly (CA et produits)."""
         graphiques_layout = QHBoxLayout()
         graphiques_layout.setSpacing(15)
 
@@ -164,9 +223,10 @@ class StatistiquesView(QWidget):
         self.chart_produits.setMinimumHeight(400)
         graphiques_layout.addWidget(self.chart_produits)
 
-        layout_principal.addLayout(graphiques_layout)
+        return graphiques_layout
 
-        # === SECTION TOP ===
+    def _creer_section_tops(self) -> QHBoxLayout:
+        """Cree la section des tops clients et produits."""
         top_layout = QHBoxLayout()
         top_layout.setSpacing(15)
 
@@ -180,51 +240,7 @@ class StatistiquesView(QWidget):
         )
         top_layout.addWidget(self._top_produits_frame)
 
-        layout_principal.addLayout(top_layout)
-
-        # === BOUTONS EXPORT ===
-        export_layout = QHBoxLayout()
-        export_layout.addStretch()
-
-        btn_export_csv = QPushButton("Exporter en CSV")
-        btn_export_csv.setStyleSheet(
-            "QPushButton { background-color: #4CAF50; color: white; "
-            "border: none; border-radius: 8px; padding: 10px 20px; "
-            "font-size: 12pt; font-weight: 600; }"
-            "QPushButton:hover { background-color: #388E3C; }"
-        )
-        btn_export_csv.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_export_csv.clicked.connect(
-            lambda: QMessageBox.information(
-                self, "Info", "Export CSV a venir."
-            )
-        )
-        export_layout.addWidget(btn_export_csv)
-
-        btn_export_pdf = QPushButton("Exporter en PDF")
-        btn_export_pdf.setStyleSheet(
-            "QPushButton { background-color: #F44336; color: white; "
-            "border: none; border-radius: 8px; padding: 10px 20px; "
-            "font-size: 12pt; font-weight: 600; }"
-            "QPushButton:hover { background-color: #D32F2F; }"
-        )
-        btn_export_pdf.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_export_pdf.clicked.connect(
-            lambda: QMessageBox.information(
-                self, "Info", "Export PDF a venir."
-            )
-        )
-        export_layout.addWidget(btn_export_pdf)
-
-        layout_principal.addLayout(export_layout)
-
-        layout_principal.addStretch()
-
-        scroll.setWidget(conteneur)
-
-        layout_self = QVBoxLayout(self)
-        layout_self.setContentsMargins(0, 0, 0, 0)
-        layout_self.addWidget(scroll)
+        return top_layout
 
     def _connecter_signaux(self):
         """Connecte les signaux."""

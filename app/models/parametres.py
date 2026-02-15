@@ -10,12 +10,12 @@ from typing import Optional
 
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class ParametresModel:
+class ParametresModel(BaseModel):
     """Modèle pour la gestion des paramètres de l'application.
 
     Les paramètres sont stockés sous forme de paires clé/valeur dans la
@@ -23,8 +23,7 @@ class ParametresModel:
     lire et modifier ces valeurs.
     """
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "parametres"
 
     # ------------------------------------------------------------------
     # Lecture

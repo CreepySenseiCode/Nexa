@@ -4,6 +4,7 @@ from models.vente import VenteModel
 from models.client import ClientModel
 from models.produit import ProduitModel
 from models.categorie_produit import CategorieProduitModel
+from models.code_reduction import CodeReductionModel
 from typing import Optional
 
 
@@ -21,6 +22,7 @@ class VenteViewModel(QObject):
         self.client_model = ClientModel()
         self.produit_model = ProduitModel()
         self.categorie_model = CategorieProduitModel()
+        self.code_reduction_model = CodeReductionModel()
 
     def rechercher_clients(self, terme: str) -> list[dict]:
         """Recherche des clients pour l'autocomplétion.
@@ -105,6 +107,28 @@ class VenteViewModel(QObject):
     def obtenir_produit(self, produit_id: int) -> dict:
         """Retourne les infos completes d'un produit."""
         return self.produit_model.obtenir_produit(produit_id)
+
+    def verifier_code_promo(self, code: str, client_id: int = None):
+        """Vérifie la validité d'un code promotionnel.
+        Retourne (resultat, message, type_erreur)."""
+        return self.code_reduction_model.verifier_code(code, client_id)
+
+    def enregistrer_utilisation_code(self, code_id: int, client_id: int, vente_id: int):
+        """Enregistre l'utilisation d'un code promo."""
+        self.code_reduction_model.enregistrer_utilisation(
+            code_id=code_id, client_id=client_id, vente_id=vente_id
+        )
+
+    def decrementer_stock(self, produit_id: int, quantite: int) -> bool:
+        """Décrémente le stock d'un produit après une vente."""
+        produit = self.produit_model.obtenir_produit(produit_id)
+        if produit:
+            stock_actuel = produit.get('stock', 0) or 0
+            nouveau_stock = stock_actuel - quantite
+            return self.produit_model.modifier_produit(
+                produit_id, {'stock': nouveau_stock}
+            )
+        return False
 
     def obtenir_prix_produit(self, produit_id: int) -> float:
         """Retourne le prix d'un produit."""

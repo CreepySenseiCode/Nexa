@@ -12,12 +12,12 @@ from typing import Optional
 
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class ClientModel:
+class ClientModel(BaseModel):
     """Modèle pour la gestion des clients.
 
     Toutes les opérations de lecture et d'écriture sur la table ``clients``
@@ -25,8 +25,7 @@ class ClientModel:
     passent par cette classe.
     """
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "clients"
 
     # ------------------------------------------------------------------
     # Création

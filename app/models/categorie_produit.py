@@ -4,16 +4,15 @@ Modèle Catégorie Produit.
 import logging
 import sqlite3
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class CategorieProduitModel:
+class CategorieProduitModel(BaseModel):
     """Gestion des catégories de produits."""
 
-    def __init__(self):
-        self.db = get_db()
+    _table = "categories_produits"
 
     def lister_categories(self, actives_uniquement=True):
         """Liste toutes les catégories."""

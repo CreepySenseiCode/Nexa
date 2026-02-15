@@ -10,20 +10,19 @@ import sqlite3
 from datetime import date
 from typing import Optional
 
-from models.database import get_db
+from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class CodeReductionModel:
+class CodeReductionModel(BaseModel):
     """Modèle pour la gestion des codes de réduction.
 
     Gère la création, la modification, la suppression, la validation et
     le suivi d'utilisation des codes promotionnels.
     """
 
-    def __init__(self) -> None:
-        self.db = get_db()
+    _table = "codes_reduction"
 
     # ------------------------------------------------------------------
     # Création
