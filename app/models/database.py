@@ -375,7 +375,7 @@ class DatabaseManager:
         self.db_path: str = db_path or _DEFAULT_DB_PATH
         self._connection: Optional[sqlite3.Connection] = None
         self._lock = threading.RLock()
-        self._in_transaction: bool = False
+        self._transaction_depth: int = 0  # Compteur pour transactions imbriquées
 
         # Créer le répertoire parent s'il n'existe pas encore
         if self.db_path != ":memory:":
@@ -399,7 +399,11 @@ class DatabaseManager:
         """
         with self._lock:
             if self._connection is None:
-                self._connection = sqlite3.connect(self.db_path)
+                self._connection = sqlite3.connect(
+                    self.db_path,
+                    check_same_thread=False,  # Thread-safety via RLock
+                    timeout=10.0
+                )
                 self._connection.row_factory = sqlite3.Row
                 # Activer le support des clés étrangères
                 self._connection.execute("PRAGMA foreign_keys = ON")
@@ -432,7 +436,8 @@ class DatabaseManager:
         with self._lock:
             conn = self.get_connection()
             cursor = conn.execute(query, params)
-            if not self._in_transaction:
+            # Auto-commit seulement si hors de toute transaction
+            if self._transaction_depth == 0:
                 conn.commit()
             return cursor
 
@@ -449,7 +454,8 @@ class DatabaseManager:
         with self._lock:
             conn = self.get_connection()
             cursor = conn.executemany(query, params_list)
-            if not self._in_transaction:
+            # Auto-commit seulement si hors de toute transaction
+            if self._transaction_depth == 0:
                 conn.commit()
             return cursor
 
@@ -492,6 +498,9 @@ class DatabaseManager:
     def transaction(self):
         """Context manager pour des opérations atomiques multi-requêtes.
 
+        Supporte les transactions imbriquées via un compteur de profondeur.
+        Seule la transaction racine (depth=1) commit/rollback réellement.
+
         Toutes les requêtes exécutées dans le bloc sont regroupées dans
         une seule transaction : commit à la fin si tout réussit, rollback
         en cas d'erreur.
@@ -503,15 +512,21 @@ class DatabaseManager:
                 db.execute("DELETE FROM clients WHERE id = ?", (cid,))
         """
         with self._lock:
-            self._in_transaction = True
+            self._transaction_depth += 1
+            is_root = self._transaction_depth == 1
+
             try:
                 yield
-                self.get_connection().commit()
+                # Commit seulement si on sort de la transaction racine
+                if is_root:
+                    self.get_connection().commit()
             except Exception:
-                self.get_connection().rollback()
+                # Rollback seulement si on sort de la transaction racine
+                if is_root:
+                    self.get_connection().rollback()
                 raise
             finally:
-                self._in_transaction = False
+                self._transaction_depth -= 1
 
     # ------------------------------------------------------------------
     # Initialisation de la base de données
