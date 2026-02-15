@@ -11,6 +11,8 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from datetime import datetime, timedelta
 from collections import defaultdict
 
+from utils.styles import style_scroll_area, Couleurs
+
 
 class StatistiquesView(QWidget):
     """Onglet Statistiques avec tableau de bord et donnees reelles."""
@@ -32,9 +34,7 @@ class StatistiquesView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setStyleSheet(
-            "QScrollArea { border: none; background-color: #FFFFFF; }"
-        )
+        scroll.setStyleSheet(style_scroll_area())
 
         conteneur = QWidget()
         conteneur.setStyleSheet("background-color: #FFFFFF;")

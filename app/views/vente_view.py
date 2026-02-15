@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 
 from views.client_card import SearchResultsWidget
+from utils.styles import style_scroll_area, Couleurs
 
 
 class VenteView(QWidget):
@@ -49,7 +50,7 @@ class VenteView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { border: none; background-color: #FFFFFF; }")
+        scroll.setStyleSheet(style_scroll_area())
 
         conteneur = QWidget()
         conteneur.setStyleSheet("background-color: #FFFFFF;")

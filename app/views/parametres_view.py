@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
+from utils.styles import style_section, style_input, style_bouton, style_scroll_area, Couleurs
 
 
 class ParametresView(QWidget):
@@ -24,10 +25,10 @@ class ParametresView(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { border: none; background-color: #FFFFFF; }")
+        scroll.setStyleSheet(style_scroll_area())
 
         content = QWidget()
-        content.setStyleSheet("background-color: #FFFFFF;")
+        content.setStyleSheet(f"background-color: {Couleurs.BLANC};")
         layout = QVBoxLayout()
         layout.setSpacing(20)
         layout.setContentsMargins(30, 20, 30, 30)
@@ -35,7 +36,7 @@ class ParametresView(QWidget):
         # Titre
         title = QLabel("Parametres")
         title.setStyleSheet(
-            "font-size: 20pt; font-weight: bold; color: #2196F3; padding: 10px 0;"
+            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE}; padding: 10px 0;"
         )
         layout.addWidget(title)
 
@@ -70,84 +71,33 @@ class ParametresView(QWidget):
         main_layout.addWidget(scroll)
         self.setLayout(main_layout)
 
-    def _get_section_style(self) -> str:
-        return (
-            "QGroupBox {"
-            "    font-size: 14pt;"
-            "    font-weight: bold;"
-            "    color: #2196F3;"
-            "    border: 2px solid #9E9E9E;"
-            "    border-radius: 10px;"
-            "    background-color: #FAFAFA;"
-            "    padding: 20px;"
-            "    margin-top: 20px;"
-            "}"
-            "QGroupBox::title {"
-            "    subcontrol-origin: margin;"
-            "    left: 15px;"
-            "    padding: 0 8px;"
-            "    background-color: #FAFAFA;"
-            "}"
-        )
-
-    def _get_input_style(self) -> str:
-        return (
-            "QLineEdit, QDateEdit, QSpinBox, QComboBox {"
-            "    border: 2px solid #9E9E9E;"
-            "    border-radius: 6px;"
-            "    padding: 8px;"
-            "    font-size: 12pt;"
-            "    min-height: 32px;"
-            "    background-color: white;"
-            "}"
-            "QLineEdit:focus, QDateEdit:focus, QSpinBox:focus, QComboBox:focus {"
-            "    border: 2px solid #2196F3;"
-            "}"
-        )
-
-    def _get_button_style(self, color: str = "#2196F3") -> str:
-        return (
-            f"QPushButton {{"
-            f"    background-color: {color};"
-            f"    color: white;"
-            f"    border: none;"
-            f"    border-radius: 8px;"
-            f"    padding: 10px 20px;"
-            f"    font-size: 12pt;"
-            f"    font-weight: 600;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"    opacity: 0.9;"
-            f"}}"
-        )
-
     def _creer_section_entreprise(self) -> QGroupBox:
         box = QGroupBox("Informations de l'entreprise")
-        box.setStyleSheet(self._get_section_style())
+        box.setStyleSheet(style_section())
 
         layout = QFormLayout()
         layout.setSpacing(15)
 
         self.input_nom_entreprise = QLineEdit()
-        self.input_nom_entreprise.setStyleSheet(self._get_input_style())
+        self.input_nom_entreprise.setStyleSheet(style_input())
         layout.addRow("Nom de l'entreprise :", self.input_nom_entreprise)
 
         self.input_date_creation = QDateEdit()
         self.input_date_creation.setCalendarPopup(True)
         self.input_date_creation.setDisplayFormat("dd/MM/yyyy")
-        self.input_date_creation.setStyleSheet(self._get_input_style())
+        self.input_date_creation.setStyleSheet(style_input())
         layout.addRow("Date de creation :", self.input_date_creation)
 
         self.input_adresse_entreprise = QLineEdit()
-        self.input_adresse_entreprise.setStyleSheet(self._get_input_style())
+        self.input_adresse_entreprise.setStyleSheet(style_input())
         layout.addRow("Adresse :", self.input_adresse_entreprise)
 
         self.input_telephone_entreprise = QLineEdit()
-        self.input_telephone_entreprise.setStyleSheet(self._get_input_style())
+        self.input_telephone_entreprise.setStyleSheet(style_input())
         layout.addRow("Telephone :", self.input_telephone_entreprise)
 
         btn_save = QPushButton("Enregistrer")
-        btn_save.setStyleSheet(self._get_button_style())
+        btn_save.setStyleSheet(style_bouton())
         btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_save.clicked.connect(self._sauvegarder_entreprise)
         layout.addRow("", btn_save)
@@ -157,7 +107,7 @@ class ParametresView(QWidget):
 
     def _creer_section_securite(self) -> QGroupBox:
         box = QGroupBox("Securite")
-        box.setStyleSheet(self._get_section_style())
+        box.setStyleSheet(style_section())
 
         layout = QVBoxLayout()
 
@@ -172,13 +122,13 @@ class ParametresView(QWidget):
         btn_layout = QHBoxLayout()
 
         self.btn_modifier_mdp = QPushButton("Modifier le mot de passe")
-        self.btn_modifier_mdp.setStyleSheet(self._get_button_style())
+        self.btn_modifier_mdp.setStyleSheet(style_bouton())
         self.btn_modifier_mdp.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_modifier_mdp.clicked.connect(self._modifier_mot_de_passe)
         btn_layout.addWidget(self.btn_modifier_mdp)
 
         self.btn_desactiver_mdp = QPushButton("Desactiver le mot de passe")
-        self.btn_desactiver_mdp.setStyleSheet(self._get_button_style("#F44336"))
+        self.btn_desactiver_mdp.setStyleSheet(style_bouton(Couleurs.DANGER))
         self.btn_desactiver_mdp.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_desactiver_mdp.clicked.connect(self._desactiver_mot_de_passe)
         btn_layout.addWidget(self.btn_desactiver_mdp)
@@ -187,7 +137,7 @@ class ParametresView(QWidget):
 
         email_layout = QFormLayout()
         self.input_email_recuperation = QLineEdit()
-        self.input_email_recuperation.setStyleSheet(self._get_input_style())
+        self.input_email_recuperation.setStyleSheet(style_input())
         self.input_email_recuperation.setPlaceholderText("email@exemple.com")
         email_layout.addRow("Email de recuperation :", self.input_email_recuperation)
         layout.addLayout(email_layout)
@@ -197,7 +147,7 @@ class ParametresView(QWidget):
 
     def _creer_section_email(self) -> QGroupBox:
         box = QGroupBox("Comptes email")
-        box.setStyleSheet(self._get_section_style())
+        box.setStyleSheet(style_section())
 
         layout = QVBoxLayout()
 
@@ -223,7 +173,7 @@ class ParametresView(QWidget):
         layout.addWidget(self.table_comptes)
 
         btn_add_email = QPushButton("Ajouter un compte email")
-        btn_add_email.setStyleSheet(self._get_button_style())
+        btn_add_email.setStyleSheet(style_bouton())
         btn_add_email.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add_email.clicked.connect(self._ajouter_compte_email)
         layout.addWidget(btn_add_email)
@@ -233,7 +183,7 @@ class ParametresView(QWidget):
 
     def _creer_section_champs_clients(self) -> QGroupBox:
         box = QGroupBox("Configuration des champs clients")
-        box.setStyleSheet(self._get_section_style())
+        box.setStyleSheet(style_section())
 
         layout = QVBoxLayout()
 
@@ -255,17 +205,17 @@ class ParametresView(QWidget):
         preset_layout.addWidget(preset_label)
 
         btn_minimal = QPushButton("Minimal")
-        btn_minimal.setStyleSheet(self._get_button_style("#FF9800"))
+        btn_minimal.setStyleSheet(style_bouton(Couleurs.AVERTISSEMENT))
         btn_minimal.setCursor(Qt.CursorShape.PointingHandCursor)
         preset_layout.addWidget(btn_minimal)
 
         btn_standard = QPushButton("Standard")
-        btn_standard.setStyleSheet(self._get_button_style("#4CAF50"))
+        btn_standard.setStyleSheet(style_bouton(Couleurs.SUCCES))
         btn_standard.setCursor(Qt.CursorShape.PointingHandCursor)
         preset_layout.addWidget(btn_standard)
 
         btn_complet = QPushButton("Complet")
-        btn_complet.setStyleSheet(self._get_button_style("#2196F3"))
+        btn_complet.setStyleSheet(style_bouton(Couleurs.PRIMAIRE))
         btn_complet.setCursor(Qt.CursorShape.PointingHandCursor)
         preset_layout.addWidget(btn_complet)
 
@@ -291,7 +241,7 @@ class ParametresView(QWidget):
             layout.addWidget(cb)
 
         btn_save_champs = QPushButton("Enregistrer la configuration")
-        btn_save_champs.setStyleSheet(self._get_button_style())
+        btn_save_champs.setStyleSheet(style_bouton())
         btn_save_champs.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(btn_save_champs)
 
@@ -300,19 +250,19 @@ class ParametresView(QWidget):
 
     def _creer_section_apparence(self) -> QGroupBox:
         box = QGroupBox("Apparence")
-        box.setStyleSheet(self._get_section_style())
+        box.setStyleSheet(style_section())
 
         layout = QFormLayout()
         layout.setSpacing(15)
 
         self.combo_monnaie = QComboBox()
         self.combo_monnaie.addItems(["EUR", "USD", "GBP", "CHF", "CAD", "XOF", "XAF"])
-        self.combo_monnaie.setStyleSheet(self._get_input_style())
+        self.combo_monnaie.setStyleSheet(style_input())
         layout.addRow("Monnaie :", self.combo_monnaie)
 
         self.combo_langue = QComboBox()
         self.combo_langue.addItems(["Francais", "English"])
-        self.combo_langue.setStyleSheet(self._get_input_style())
+        self.combo_langue.setStyleSheet(style_input())
         layout.addRow("Langue :", self.combo_langue)
 
         box.setLayout(layout)
@@ -320,7 +270,7 @@ class ParametresView(QWidget):
 
     def _creer_section_database(self) -> QGroupBox:
         box = QGroupBox("Base de donnees")
-        box.setStyleSheet(self._get_section_style())
+        box.setStyleSheet(style_section())
 
         layout = QVBoxLayout()
 
@@ -331,19 +281,19 @@ class ParametresView(QWidget):
         btn_layout = QHBoxLayout()
 
         btn_export = QPushButton("Exporter la base")
-        btn_export.setStyleSheet(self._get_button_style("#4CAF50"))
+        btn_export.setStyleSheet(style_bouton(Couleurs.SUCCES))
         btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_export.clicked.connect(self._exporter_base)
         btn_layout.addWidget(btn_export)
 
         btn_import = QPushButton("Importer une base")
-        btn_import.setStyleSheet(self._get_button_style("#FF9800"))
+        btn_import.setStyleSheet(style_bouton(Couleurs.AVERTISSEMENT))
         btn_import.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_import.clicked.connect(self._importer_base)
         btn_layout.addWidget(btn_import)
 
         btn_reset = QPushButton("Reinitialiser")
-        btn_reset.setStyleSheet(self._get_button_style("#F44336"))
+        btn_reset.setStyleSheet(style_bouton(Couleurs.DANGER))
         btn_reset.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_reset.clicked.connect(self._reinitialiser_base)
         btn_layout.addWidget(btn_reset)
@@ -360,7 +310,7 @@ class ParametresView(QWidget):
     def _creer_section_attributs_produits(self) -> QGroupBox:
         """Section pour gerer les attributs personnalises des produits."""
         box = QGroupBox("Attributs produits personnalisables")
-        box.setStyleSheet(self._get_section_style())
+        box.setStyleSheet(style_section())
 
         layout = QVBoxLayout()
 
@@ -391,17 +341,17 @@ class ParametresView(QWidget):
         self.input_nouvel_attribut.setPlaceholderText(
             "Nom du nouvel attribut (ex: Marque)"
         )
-        self.input_nouvel_attribut.setStyleSheet(self._get_input_style())
+        self.input_nouvel_attribut.setStyleSheet(style_input())
         form_layout.addWidget(self.input_nouvel_attribut)
 
         btn_ajouter = QPushButton("Ajouter")
-        btn_ajouter.setStyleSheet(self._get_button_style())
+        btn_ajouter.setStyleSheet(style_bouton())
         btn_ajouter.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_ajouter.clicked.connect(self._ajouter_attribut)
         form_layout.addWidget(btn_ajouter)
 
         btn_supprimer = QPushButton("Supprimer")
-        btn_supprimer.setStyleSheet(self._get_button_style("#F44336"))
+        btn_supprimer.setStyleSheet(style_bouton(Couleurs.DANGER))
         btn_supprimer.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_supprimer.clicked.connect(self._supprimer_attribut)
         form_layout.addWidget(btn_supprimer)

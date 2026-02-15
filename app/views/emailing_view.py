@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QDateTime
 from PySide6.QtGui import QFont, QTextImageFormat
 
+from utils.styles import style_groupe, style_input, style_bouton, style_scroll_area, Couleurs
+
 
 class EmailingView(QWidget):
     """Interface d'envoi d'emails avec editeur riche."""
@@ -35,9 +37,7 @@ class EmailingView(QWidget):
         # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(
-            "QScrollArea { border: none; background-color: #FFFFFF; }"
-        )
+        scroll.setStyleSheet(style_scroll_area())
 
         conteneur = QWidget()
         layout_conteneur = QVBoxLayout()
@@ -72,7 +72,7 @@ class EmailingView(QWidget):
     def _creer_section_destinataires(self) -> QGroupBox:
         """Section destinataires avec gestion dynamique."""
         group = QGroupBox("Destinataires")
-        group.setStyleSheet(self._get_group_style())
+        group.setStyleSheet(style_groupe())
 
         layout = QVBoxLayout()
 
@@ -86,7 +86,7 @@ class EmailingView(QWidget):
             "Selection de clients (filtres)",
             "Tous les clients",
         ])
-        self.combo_type.setStyleSheet(self._get_input_style())
+        self.combo_type.setStyleSheet(style_input())
         self.combo_type.currentIndexChanged.connect(self._on_type_changed)
         type_layout.addWidget(self.combo_type)
         type_layout.addStretch()
@@ -102,7 +102,7 @@ class EmailingView(QWidget):
         self.input_client.setPlaceholderText(
             "Rechercher un client (nom, email, telephone)..."
         )
-        self.input_client.setStyleSheet(self._get_input_style())
+        self.input_client.setStyleSheet(style_input())
         self.input_client.textChanged.connect(self._rechercher_client)
         unique_layout.addWidget(self.input_client)
 
@@ -163,7 +163,7 @@ class EmailingView(QWidget):
 
         # Bouton Appliquer filtres
         btn_appliquer = QPushButton("Appliquer les filtres")
-        btn_appliquer.setStyleSheet(self._get_button_style("#2196F3"))
+        btn_appliquer.setStyleSheet(style_bouton(Couleurs.PRIMAIRE))
         btn_appliquer.clicked.connect(self._appliquer_filtres)
         selection_layout.addWidget(btn_appliquer)
 
@@ -340,7 +340,7 @@ class EmailingView(QWidget):
     def _creer_section_contenu(self) -> QGroupBox:
         """Section contenu avec editeur riche."""
         group = QGroupBox("Contenu de l'email")
-        group.setStyleSheet(self._get_group_style())
+        group.setStyleSheet(style_groupe())
 
         layout = QVBoxLayout()
 
@@ -350,7 +350,7 @@ class EmailingView(QWidget):
         self.input_objet.setPlaceholderText(
             "Ex: Nouvelle promotion sur nos produits"
         )
-        self.input_objet.setStyleSheet(self._get_input_style())
+        self.input_objet.setStyleSheet(style_input())
         layout.addWidget(self.input_objet)
 
         # === BARRE D'OUTILS EDITEUR RICHE ===
@@ -519,12 +519,12 @@ class EmailingView(QWidget):
     def _creer_section_pieces_jointes(self) -> QGroupBox:
         """Section pieces jointes."""
         group = QGroupBox("Pieces jointes")
-        group.setStyleSheet(self._get_group_style())
+        group.setStyleSheet(style_groupe())
 
         layout = QVBoxLayout()
 
         btn_ajouter_fichier = QPushButton("Ajouter un fichier")
-        btn_ajouter_fichier.setStyleSheet(self._get_button_style("#2196F3"))
+        btn_ajouter_fichier.setStyleSheet(style_bouton(Couleurs.PRIMAIRE))
         btn_ajouter_fichier.clicked.connect(self._ajouter_piece_jointe)
         layout.addWidget(btn_ajouter_fichier)
 
@@ -552,7 +552,7 @@ class EmailingView(QWidget):
         btn_annuler = QPushButton("Annuler")
         btn_annuler.setMinimumHeight(50)
         btn_annuler.setMinimumWidth(150)
-        btn_annuler.setStyleSheet(self._get_button_style("#9E9E9E"))
+        btn_annuler.setStyleSheet(style_bouton(Couleurs.GRIS))
         btn_annuler.clicked.connect(self._annuler)
         layout.addWidget(btn_annuler)
 
@@ -560,7 +560,7 @@ class EmailingView(QWidget):
         btn_template = QPushButton("Enregistrer template")
         btn_template.setMinimumHeight(50)
         btn_template.setMinimumWidth(200)
-        btn_template.setStyleSheet(self._get_button_style("#9C27B0"))
+        btn_template.setStyleSheet(style_bouton(Couleurs.VIOLET))
         btn_template.clicked.connect(self._enregistrer_template)
         layout.addWidget(btn_template)
 
@@ -568,7 +568,7 @@ class EmailingView(QWidget):
         btn_programmer = QPushButton("Programmer l'envoi")
         btn_programmer.setMinimumHeight(50)
         btn_programmer.setMinimumWidth(200)
-        btn_programmer.setStyleSheet(self._get_button_style("#FF9800"))
+        btn_programmer.setStyleSheet(style_bouton(Couleurs.AVERTISSEMENT))
         btn_programmer.clicked.connect(self._programmer_envoi)
         layout.addWidget(btn_programmer)
 
@@ -576,7 +576,7 @@ class EmailingView(QWidget):
         btn_brouillon = QPushButton("Enregistrer brouillon")
         btn_brouillon.setMinimumHeight(50)
         btn_brouillon.setMinimumWidth(200)
-        btn_brouillon.setStyleSheet(self._get_button_style("#607D8B"))
+        btn_brouillon.setStyleSheet(style_bouton(Couleurs.ARDOISE))
         btn_brouillon.clicked.connect(self._enregistrer_brouillon)
         layout.addWidget(btn_brouillon)
 
@@ -584,7 +584,7 @@ class EmailingView(QWidget):
         btn_envoyer = QPushButton("Envoyer maintenant")
         btn_envoyer.setMinimumHeight(50)
         btn_envoyer.setMinimumWidth(200)
-        btn_envoyer.setStyleSheet(self._get_button_style("#4CAF50"))
+        btn_envoyer.setStyleSheet(style_bouton(Couleurs.SUCCES))
         btn_envoyer.clicked.connect(self._envoyer_email)
         layout.addWidget(btn_envoyer)
 
@@ -702,34 +702,3 @@ class EmailingView(QWidget):
         self.list_fichiers.clear()
         self.combo_type.setCurrentIndex(0)
 
-    # ------------------------------------------------------------------ #
-    #                     Styles                                          #
-    # ------------------------------------------------------------------ #
-
-    def _get_group_style(self) -> str:
-        """Style des GroupBox."""
-        return (
-            "QGroupBox { font-size: 14pt; font-weight: 600; color: #1976D2; "
-            "border: 2px solid #2196F3; border-radius: 12px; "
-            "background-color: white; padding: 20px; margin-top: 15px; }"
-            "QGroupBox::title { subcontrol-origin: margin; left: 20px; "
-            "padding: 0 10px; background-color: white; border-radius: 4px; }"
-        )
-
-    def _get_input_style(self) -> str:
-        """Style des inputs."""
-        return (
-            "QLineEdit, QComboBox { min-height: 40px; font-size: 12pt; "
-            "padding: 8px 12px; border: 2px solid #E0E0E0; "
-            "border-radius: 8px; background-color: white; }"
-            "QLineEdit:focus, QComboBox:focus { border: 2px solid #2196F3; }"
-        )
-
-    def _get_button_style(self, color: str) -> str:
-        """Style des boutons."""
-        return (
-            f"QPushButton {{ background-color: {color}; color: white; "
-            f"border: none; border-radius: 8px; padding: 12px 24px; "
-            f"font-size: 13pt; font-weight: 600; }}"
-            f"QPushButton:hover {{ opacity: 0.9; }}"
-        )

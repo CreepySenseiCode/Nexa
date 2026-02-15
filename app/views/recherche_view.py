@@ -37,6 +37,7 @@ from PySide6.QtGui import QFont, QPixmap, QPainter, QPainterPath, QLinearGradien
 
 from viewmodels.recherche_vm import RechercheViewModel
 from views.client_card import SearchResultsWidget
+from utils.styles import style_groupe, style_scroll_area, Couleurs
 
 
 class RechercheView(QWidget):
@@ -284,20 +285,6 @@ class RechercheView(QWidget):
     # Section 2b : Informations personnelles + Adresse + Centres d'int\u00e9r\u00eat + Notes
     # ------------------------------------------------------------------
 
-    def _get_group_style(self) -> str:
-        """Retourne le style commun pour les GroupBox."""
-        return (
-            "QGroupBox {"
-            "    padding: 20px; padding-top: 30px; border-radius: 12px;"
-            "    border: 1px solid #E0E0E0; margin-top: 10px;"
-            "    background-color: white;"
-            "}"
-            "QGroupBox::title {"
-            "    color: #1976D2; padding: 0 12px;"
-            "    font-size: 13pt; font-weight: 600;"
-            "}"
-        )
-
     def _creer_section_infos(self):
         """Cree la section Informations personnelles avec style moderne."""
         self._group_infos = QGroupBox("\U0001F464  Informations personnelles")
@@ -305,7 +292,7 @@ class RechercheView(QWidget):
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
         self._group_infos.setFont(font_section)
-        self._group_infos.setStyleSheet(self._get_group_style())
+        self._group_infos.setStyleSheet(style_groupe())
         self._layout_infos = QGridLayout()
         self._layout_infos.setHorizontalSpacing(25)
         self._layout_infos.setVerticalSpacing(10)
@@ -315,7 +302,7 @@ class RechercheView(QWidget):
         # Section Adresse
         self._group_adresse = QGroupBox("\U0001F3E0  Adresse")
         self._group_adresse.setFont(font_section)
-        self._group_adresse.setStyleSheet(self._get_group_style())
+        self._group_adresse.setStyleSheet(style_groupe())
         self._layout_adresse = QVBoxLayout()
         self._group_adresse.setLayout(self._layout_adresse)
         self._layout_profil.addWidget(self._group_adresse)
@@ -323,7 +310,7 @@ class RechercheView(QWidget):
         # Section Centres d'int\u00e9r\u00eat (tags)
         self._group_interets = QGroupBox("\u2764\ufe0f  Centres d'int\u00e9r\u00eat")
         self._group_interets.setFont(font_section)
-        self._group_interets.setStyleSheet(self._get_group_style())
+        self._group_interets.setStyleSheet(style_groupe())
         self._layout_interets_wrapper = QVBoxLayout()
         self._layout_interets = QHBoxLayout()
         self._layout_interets.setSpacing(8)
@@ -336,7 +323,7 @@ class RechercheView(QWidget):
         # Section Notes
         self._group_notes = QGroupBox("\U0001F4DD  Notes")
         self._group_notes.setFont(font_section)
-        self._group_notes.setStyleSheet(self._get_group_style())
+        self._group_notes.setStyleSheet(style_groupe())
         self._layout_notes = QVBoxLayout()
         self._label_notes = QLabel()
         self._label_notes.setWordWrap(True)
@@ -361,7 +348,7 @@ class RechercheView(QWidget):
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
         self._group_relations.setFont(font_section)
-        self._group_relations.setStyleSheet(self._get_group_style())
+        self._group_relations.setStyleSheet(style_groupe())
         self._layout_relations = QVBoxLayout()
         self._group_relations.setLayout(self._layout_relations)
         self._group_relations.setVisible(False)
@@ -378,7 +365,7 @@ class RechercheView(QWidget):
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
         self._group_stats.setFont(font_section)
-        self._group_stats.setStyleSheet(self._get_group_style())
+        self._group_stats.setStyleSheet(style_groupe())
         self._layout_stats = QGridLayout()
         self._layout_stats.setSpacing(15)
         self._group_stats.setLayout(self._layout_stats)
@@ -395,7 +382,7 @@ class RechercheView(QWidget):
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
         self._group_graphiques.setFont(font_section)
-        self._group_graphiques.setStyleSheet(self._get_group_style())
+        self._group_graphiques.setStyleSheet(style_groupe())
         self._layout_graphiques = QHBoxLayout()
         self._layout_graphiques.setSpacing(15)
 

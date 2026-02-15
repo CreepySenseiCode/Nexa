@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
+from utils.styles import style_bouton, style_scroll_area, Couleurs
+
 
 class HistoriqueMailsView(QWidget):
     """Interface de l'historique des emails envoy\u00e9s."""
@@ -37,7 +39,7 @@ class HistoriqueMailsView(QWidget):
 
         # Bouton rafraichir
         btn_refresh = QPushButton("Actualiser")
-        btn_refresh.setStyleSheet(self._get_button_style("#2196F3"))
+        btn_refresh.setStyleSheet(style_bouton(Couleurs.PRIMAIRE, taille="petit"))
         btn_refresh.clicked.connect(self._charger_historique)
         header_layout.addWidget(btn_refresh)
 
@@ -183,7 +185,7 @@ class HistoriqueMailsView(QWidget):
 
             # Bouton Details
             btn_details = QPushButton("D\u00e9tails")
-            btn_details.setStyleSheet(self._get_button_style("#2196F3"))
+            btn_details.setStyleSheet(style_bouton(Couleurs.PRIMAIRE, taille="petit"))
             btn_details.clicked.connect(
                 lambda checked, r=row: self._voir_details(r)
             )
@@ -226,20 +228,3 @@ class HistoriqueMailsView(QWidget):
             "(D\u00e9tails complets \u00e0 impl\u00e9menter)",
         )
 
-    def _get_button_style(self, color: str) -> str:
-        """Style des boutons."""
-        return (
-            f"QPushButton {{"
-            f"    background-color: {color};"
-            f"    color: white;"
-            f"    border: none;"
-            f"    border-radius: 6px;"
-            f"    padding: 8px 16px;"
-            f"    font-size: 11pt;"
-            f"    font-weight: 600;"
-            f"    min-height: 35px;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"    opacity: 0.9;"
-            f"}}"
-        )

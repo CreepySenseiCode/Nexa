@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
+from utils.styles import style_bouton, style_scroll_area, Couleurs
+
 
 class BoiteReceptionView(QWidget):
     """Interface de bo\u00eete de r\u00e9ception."""
@@ -67,7 +69,7 @@ class BoiteReceptionView(QWidget):
 
         # Bouton rafraichir
         btn_refresh = QPushButton("Actualiser")
-        btn_refresh.setStyleSheet(self._get_button_style("#2196F3"))
+        btn_refresh.setStyleSheet(style_bouton(Couleurs.PRIMAIRE, taille="petit"))
         btn_refresh.clicked.connect(self._charger_emails)
         header_layout.addWidget(btn_refresh)
 
@@ -219,7 +221,7 @@ class BoiteReceptionView(QWidget):
 
             # Bouton Ouvrir
             btn_ouvrir = QPushButton("Ouvrir")
-            btn_ouvrir.setStyleSheet(self._get_button_style("#2196F3"))
+            btn_ouvrir.setStyleSheet(style_bouton(Couleurs.PRIMAIRE, taille="petit"))
             btn_ouvrir.clicked.connect(
                 lambda checked, r=row: self._ouvrir_email(r)
             )
@@ -264,20 +266,3 @@ class BoiteReceptionView(QWidget):
             "(Fonctionnalit\u00e9 \u00e0 impl\u00e9menter)",
         )
 
-    def _get_button_style(self, color: str) -> str:
-        """Style des boutons."""
-        return (
-            f"QPushButton {{"
-            f"    background-color: {color};"
-            f"    color: white;"
-            f"    border: none;"
-            f"    border-radius: 6px;"
-            f"    padding: 8px 16px;"
-            f"    font-size: 11pt;"
-            f"    font-weight: 600;"
-            f"    min-height: 35px;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"    opacity: 0.9;"
-            f"}}"
-        )

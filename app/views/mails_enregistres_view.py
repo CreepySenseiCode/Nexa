@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
+from utils.styles import style_bouton, style_onglet, style_scroll_area, Couleurs
+
 
 class MailsEnregistresView(QWidget):
     """Interface des mails enregistr\u00e9s (templates et brouillons)."""
@@ -40,14 +42,14 @@ class MailsEnregistresView(QWidget):
         self.btn_tab_templates = QPushButton("Templates")
         self.btn_tab_templates.setCheckable(True)
         self.btn_tab_templates.setChecked(True)
-        self.btn_tab_templates.setStyleSheet(self._get_tab_style(True))
+        self.btn_tab_templates.setStyleSheet(style_onglet(True))
         self.btn_tab_templates.clicked.connect(lambda: self._changer_tab("templates"))
         tabs_layout.addWidget(self.btn_tab_templates)
 
         self.btn_tab_brouillons = QPushButton("Brouillons")
         self.btn_tab_brouillons.setCheckable(True)
         self.btn_tab_brouillons.setChecked(False)
-        self.btn_tab_brouillons.setStyleSheet(self._get_tab_style(False))
+        self.btn_tab_brouillons.setStyleSheet(style_onglet(False))
         self.btn_tab_brouillons.clicked.connect(lambda: self._changer_tab("brouillons"))
         tabs_layout.addWidget(self.btn_tab_brouillons)
 
@@ -79,12 +81,12 @@ class MailsEnregistresView(QWidget):
         btn_layout = QHBoxLayout()
 
         btn_nouveau = QPushButton("Nouveau template")
-        btn_nouveau.setStyleSheet(self._get_button_style("#4CAF50"))
+        btn_nouveau.setStyleSheet(style_bouton(Couleurs.SUCCES))
         btn_nouveau.clicked.connect(self._nouveau_template)
         btn_layout.addWidget(btn_nouveau)
 
         btn_supprimer = QPushButton("Supprimer")
-        btn_supprimer.setStyleSheet(self._get_button_style("#F44336"))
+        btn_supprimer.setStyleSheet(style_bouton(Couleurs.DANGER))
         btn_supprimer.clicked.connect(self._supprimer_mail)
         btn_layout.addWidget(btn_supprimer)
 
@@ -132,12 +134,12 @@ class MailsEnregistresView(QWidget):
         preview_btn_layout = QHBoxLayout()
 
         btn_utiliser = QPushButton("Utiliser ce template")
-        btn_utiliser.setStyleSheet(self._get_button_style("#2196F3"))
+        btn_utiliser.setStyleSheet(style_bouton(Couleurs.PRIMAIRE))
         btn_utiliser.clicked.connect(self._utiliser_template)
         preview_btn_layout.addWidget(btn_utiliser)
 
         btn_modifier = QPushButton("Modifier")
-        btn_modifier.setStyleSheet(self._get_button_style("#FF9800"))
+        btn_modifier.setStyleSheet(style_bouton(Couleurs.AVERTISSEMENT))
         btn_modifier.clicked.connect(self._modifier_template)
         preview_btn_layout.addWidget(btn_modifier)
 
@@ -173,13 +175,13 @@ class MailsEnregistresView(QWidget):
         if tab == "templates":
             self.btn_tab_templates.setChecked(True)
             self.btn_tab_brouillons.setChecked(False)
-            self.btn_tab_templates.setStyleSheet(self._get_tab_style(True))
-            self.btn_tab_brouillons.setStyleSheet(self._get_tab_style(False))
+            self.btn_tab_templates.setStyleSheet(style_onglet(True))
+            self.btn_tab_brouillons.setStyleSheet(style_onglet(False))
         else:
             self.btn_tab_templates.setChecked(False)
             self.btn_tab_brouillons.setChecked(True)
-            self.btn_tab_templates.setStyleSheet(self._get_tab_style(False))
-            self.btn_tab_brouillons.setStyleSheet(self._get_tab_style(True))
+            self.btn_tab_templates.setStyleSheet(style_onglet(False))
+            self.btn_tab_brouillons.setStyleSheet(style_onglet(True))
         self._charger_templates()
 
     def _on_mail_selectionne(self, current, previous):
@@ -269,47 +271,3 @@ class MailsEnregistresView(QWidget):
             self, "Info", "Modification du template \u00e0 impl\u00e9menter."
         )
 
-    def _get_tab_style(self, active: bool) -> str:
-        """Style d'un bouton onglet."""
-        if active:
-            return (
-                "QPushButton {"
-                "    background-color: #2196F3;"
-                "    color: white;"
-                "    border: none;"
-                "    border-radius: 8px;"
-                "    padding: 10px 20px;"
-                "    font-size: 12pt;"
-                "    font-weight: 600;"
-                "}"
-            )
-        return (
-            "QPushButton {"
-            "    background-color: #E0E0E0;"
-            "    color: #666;"
-            "    border: none;"
-            "    border-radius: 8px;"
-            "    padding: 10px 20px;"
-            "    font-size: 12pt;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: #BDBDBD;"
-            "}"
-        )
-
-    def _get_button_style(self, color: str) -> str:
-        """Style des boutons."""
-        return (
-            f"QPushButton {{"
-            f"    background-color: {color};"
-            f"    color: white;"
-            f"    border: none;"
-            f"    border-radius: 8px;"
-            f"    padding: 10px 20px;"
-            f"    font-size: 12pt;"
-            f"    font-weight: 600;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"    opacity: 0.9;"
-            f"}}"
-        )
