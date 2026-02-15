@@ -7,10 +7,25 @@ Lance l'interface graphique PySide6 avec la fenêtre principale.
 
 import sys
 import os
+import logging
 
 # Ajouter le répertoire de l'application au PYTHONPATH
 # pour permettre les imports relatifs depuis n'importe quel dossier
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _APP_DIR)
+
+# --- Configuration du logging (avant tout import applicatif) ---
+_LOG_DIR = os.path.join(_APP_DIR, "data", "logs")
+os.makedirs(_LOG_DIR, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler(os.path.join(_LOG_DIR, "nexa.log"), encoding="utf-8"),
+        logging.StreamHandler(),
+    ],
+)
 
 from PySide6.QtWidgets import QApplication, QStyleFactory
 from PySide6.QtGui import QFont, QPalette, QColor

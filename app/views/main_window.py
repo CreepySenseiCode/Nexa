@@ -419,13 +419,11 @@ class MainWindow(QMainWindow):
         Returns:
             Le nom de l'entreprise, ou 'Mon Commerce' par défaut.
         """
+        from models.parametres import ParametresModel
         try:
-            db = get_db()
-            resultat = db.fetchone(
-                "SELECT valeur FROM parametres WHERE cle = 'nom_entreprise'"
-            )
-            if resultat and resultat["valeur"]:
-                return resultat["valeur"]
+            valeur = ParametresModel().obtenir_parametre('nom_entreprise')
+            if valeur:
+                return valeur
         except Exception:
             pass
         return "Mon Commerce"
