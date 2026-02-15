@@ -8,6 +8,8 @@ par défaut et les opérations CRUD de base.
 
 import os
 import sqlite3
+import threading
+from contextlib import contextmanager
 from datetime import date
 from typing import Optional
 
@@ -300,6 +302,13 @@ CREATE INDEX IF NOT EXISTS idx_clients_prenom ON clients(prenom);
 CREATE INDEX IF NOT EXISTS idx_clients_email ON clients(email);
 CREATE INDEX IF NOT EXISTS idx_ventes_client ON ventes(client_id);
 CREATE INDEX IF NOT EXISTS idx_ventes_date ON ventes(date_vente);
+CREATE INDEX IF NOT EXISTS idx_ventes_produit ON ventes(produit_id);
+CREATE INDEX IF NOT EXISTS idx_emails_recus_client ON emails_recus(client_id);
+CREATE INDEX IF NOT EXISTS idx_clients_centres_client ON clients_centres_interet(client_id);
+CREATE INDEX IF NOT EXISTS idx_clients_centres_interet ON clients_centres_interet(centre_interet_id);
+CREATE INDEX IF NOT EXISTS idx_utilisations_codes_client ON utilisations_codes(client_id);
+CREATE INDEX IF NOT EXISTS idx_utilisations_codes_code ON utilisations_codes(code_id);
+CREATE INDEX IF NOT EXISTS idx_historique_emails_mail ON historique_emails(mail_id);
 """
 
 
@@ -365,6 +374,8 @@ class DatabaseManager:
         """
         self.db_path: str = db_path or _DEFAULT_DB_PATH
         self._connection: Optional[sqlite3.Connection] = None
+        self._lock = threading.RLock()
+        self._in_transaction: bool = False
 
         # Créer le répertoire parent s'il n'existe pas encore
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
@@ -385,18 +396,20 @@ class DatabaseManager:
         Returns:
             La connexion SQLite configurée.
         """
-        if self._connection is None:
-            self._connection = sqlite3.connect(self.db_path)
-            self._connection.row_factory = sqlite3.Row
-            # Activer le support des clés étrangères
-            self._connection.execute("PRAGMA foreign_keys = ON")
-        return self._connection
+        with self._lock:
+            if self._connection is None:
+                self._connection = sqlite3.connect(self.db_path)
+                self._connection.row_factory = sqlite3.Row
+                # Activer le support des clés étrangères
+                self._connection.execute("PRAGMA foreign_keys = ON")
+            return self._connection
 
     def close(self) -> None:
         """Ferme proprement la connexion à la base de données."""
-        if self._connection is not None:
-            self._connection.close()
-            self._connection = None
+        with self._lock:
+            if self._connection is not None:
+                self._connection.close()
+                self._connection = None
 
     # ------------------------------------------------------------------
     # Méthodes d'exécution de requêtes
@@ -405,8 +418,8 @@ class DatabaseManager:
     def execute(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
         """Exécute une requête SQL avec des paramètres optionnels.
 
-        La transaction est automatiquement validée (commit) après
-        l'exécution.
+        Le commit est automatique sauf si une transaction est en cours
+        (voir :meth:`transaction`).
 
         Args:
             query:  La requête SQL à exécuter.
@@ -415,10 +428,12 @@ class DatabaseManager:
         Returns:
             Le curseur résultant de l'exécution.
         """
-        conn = self.get_connection()
-        cursor = conn.execute(query, params)
-        conn.commit()
-        return cursor
+        with self._lock:
+            conn = self.get_connection()
+            cursor = conn.execute(query, params)
+            if not self._in_transaction:
+                conn.commit()
+            return cursor
 
     def executemany(self, query: str, params_list: list) -> sqlite3.Cursor:
         """Exécute une requête SQL pour chaque jeu de paramètres.
@@ -430,10 +445,12 @@ class DatabaseManager:
         Returns:
             Le curseur résultant de l'exécution.
         """
-        conn = self.get_connection()
-        cursor = conn.executemany(query, params_list)
-        conn.commit()
-        return cursor
+        with self._lock:
+            conn = self.get_connection()
+            cursor = conn.executemany(query, params_list)
+            if not self._in_transaction:
+                conn.commit()
+            return cursor
 
     def fetchone(self, query: str, params: tuple = ()) -> Optional[dict]:
         """Exécute une requête et retourne la première ligne sous forme de dict.
@@ -446,12 +463,13 @@ class DatabaseManager:
             Un dictionnaire représentant la ligne, ou ``None`` si aucun
             résultat.
         """
-        conn = self.get_connection()
-        cursor = conn.execute(query, params)
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        return dict(row)
+        with self._lock:
+            conn = self.get_connection()
+            cursor = conn.execute(query, params)
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return dict(row)
 
     def fetchall(self, query: str, params: tuple = ()) -> list[dict]:
         """Exécute une requête et retourne toutes les lignes sous forme de dicts.
@@ -463,10 +481,36 @@ class DatabaseManager:
         Returns:
             Une liste de dictionnaires, un par ligne de résultat.
         """
-        conn = self.get_connection()
-        cursor = conn.execute(query, params)
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        with self._lock:
+            conn = self.get_connection()
+            cursor = conn.execute(query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    @contextmanager
+    def transaction(self):
+        """Context manager pour des opérations atomiques multi-requêtes.
+
+        Toutes les requêtes exécutées dans le bloc sont regroupées dans
+        une seule transaction : commit à la fin si tout réussit, rollback
+        en cas d'erreur.
+
+        Usage::
+
+            with db.transaction():
+                db.execute("DELETE FROM enfants WHERE client_id = ?", (cid,))
+                db.execute("DELETE FROM clients WHERE id = ?", (cid,))
+        """
+        with self._lock:
+            self._in_transaction = True
+            try:
+                yield
+                self.get_connection().commit()
+            except Exception:
+                self.get_connection().rollback()
+                raise
+            finally:
+                self._in_transaction = False
 
     # ------------------------------------------------------------------
     # Initialisation de la base de données

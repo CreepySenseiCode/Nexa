@@ -81,21 +81,22 @@ class ProduitModel:
             ``True`` si la suppression a réussi, ``False`` sinon.
         """
         try:
-            # Supprimer d'abord les produits de la catégorie
-            self.db.execute(
-                "DELETE FROM produits WHERE categorie_id = ?",
-                (categorie_id,),
-            )
-            # Supprimer les attributs de la catégorie
-            self.db.execute(
-                "DELETE FROM attributs_produits WHERE categorie_id = ?",
-                (categorie_id,),
-            )
-            # Supprimer la catégorie
-            self.db.execute(
-                "DELETE FROM categories_produits WHERE id = ?",
-                (categorie_id,),
-            )
+            with self.db.transaction():
+                # Supprimer d'abord les produits de la catégorie
+                self.db.execute(
+                    "DELETE FROM produits WHERE categorie_id = ?",
+                    (categorie_id,),
+                )
+                # Supprimer les attributs de la catégorie
+                self.db.execute(
+                    "DELETE FROM attributs_produits WHERE categorie_id = ?",
+                    (categorie_id,),
+                )
+                # Supprimer la catégorie
+                self.db.execute(
+                    "DELETE FROM categories_produits WHERE id = ?",
+                    (categorie_id,),
+                )
 
             logger.info("Catégorie %s supprimée avec succès", categorie_id)
             return True
@@ -258,15 +259,16 @@ class ProduitModel:
             ``True`` si la suppression a réussi, ``False`` sinon.
         """
         try:
-            # Supprimer les valeurs d'attributs associées
-            self.db.execute(
-                "DELETE FROM valeurs_attributs_produits WHERE produit_id = ?",
-                (produit_id,),
-            )
-            # Supprimer le produit
-            self.db.execute(
-                "DELETE FROM produits WHERE id = ?", (produit_id,)
-            )
+            with self.db.transaction():
+                # Supprimer les valeurs d'attributs associées
+                self.db.execute(
+                    "DELETE FROM valeurs_attributs_produits WHERE produit_id = ?",
+                    (produit_id,),
+                )
+                # Supprimer le produit
+                self.db.execute(
+                    "DELETE FROM produits WHERE id = ?", (produit_id,)
+                )
 
             logger.info("Produit %s supprimé avec succès", produit_id)
             return True

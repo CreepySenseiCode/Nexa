@@ -367,24 +367,25 @@ class CodeReductionModel:
             ``True`` si l'enregistrement a réussi, ``False`` sinon.
         """
         try:
-            # Insérer l'utilisation
-            self.db.execute(
-                """
-                INSERT INTO utilisations_codes (code_id, client_id, vente_id)
-                VALUES (?, ?, ?)
-                """,
-                (code_id, client_id, vente_id),
-            )
+            with self.db.transaction():
+                # Insérer l'utilisation
+                self.db.execute(
+                    """
+                    INSERT INTO utilisations_codes (code_id, client_id, vente_id)
+                    VALUES (?, ?, ?)
+                    """,
+                    (code_id, client_id, vente_id),
+                )
 
-            # Incrémenter le compteur d'utilisations
-            self.db.execute(
-                """
-                UPDATE codes_reduction
-                SET nombre_utilisations = nombre_utilisations + 1
-                WHERE id = ?
-                """,
-                (code_id,),
-            )
+                # Incrémenter le compteur d'utilisations
+                self.db.execute(
+                    """
+                    UPDATE codes_reduction
+                    SET nombre_utilisations = nombre_utilisations + 1
+                    WHERE id = ?
+                    """,
+                    (code_id,),
+                )
 
             logger.info(
                 "Utilisation du code %s enregistrée (client %s, vente %s)",

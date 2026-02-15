@@ -94,15 +94,16 @@ class CentreInteretModel:
             ``True`` si la suppression a réussi, ``False`` sinon.
         """
         try:
-            # Supprimer les liaisons clients
-            self.db.execute(
-                "DELETE FROM clients_centres_interet WHERE centre_interet_id = ?",
-                (centre_id,),
-            )
-            # Supprimer le centre d'intérêt
-            self.db.execute(
-                "DELETE FROM centres_interet WHERE id = ?", (centre_id,)
-            )
+            with self.db.transaction():
+                # Supprimer les liaisons clients
+                self.db.execute(
+                    "DELETE FROM clients_centres_interet WHERE centre_interet_id = ?",
+                    (centre_id,),
+                )
+                # Supprimer le centre d'intérêt
+                self.db.execute(
+                    "DELETE FROM centres_interet WHERE id = ?", (centre_id,)
+                )
 
             logger.info(
                 "Centre d'intérêt %s supprimé avec succès", centre_id
@@ -244,23 +245,24 @@ class CentreInteretModel:
             ``True`` si l'opération a réussi, ``False`` sinon.
         """
         try:
-            # Supprimer toutes les liaisons existantes
-            self.db.execute(
-                "DELETE FROM clients_centres_interet WHERE client_id = ?",
-                (client_id,),
-            )
+            with self.db.transaction():
+                # Supprimer toutes les liaisons existantes
+                self.db.execute(
+                    "DELETE FROM clients_centres_interet WHERE client_id = ?",
+                    (client_id,),
+                )
 
-            # Créer et associer chaque centre
-            for nom in noms_centres:
-                centre_id = self.creer(nom)
-                if centre_id == -1:
-                    logger.error(
-                        "Impossible de créer le centre '%s' pour le client %s",
-                        nom,
-                        client_id,
-                    )
-                    continue
-                self.ajouter_centre_client(client_id, centre_id)
+                # Créer et associer chaque centre
+                for nom in noms_centres:
+                    centre_id = self.creer(nom)
+                    if centre_id == -1:
+                        logger.error(
+                            "Impossible de créer le centre '%s' pour le client %s",
+                            nom,
+                            client_id,
+                        )
+                        continue
+                    self.ajouter_centre_client(client_id, centre_id)
 
             logger.info(
                 "Centres d'intérêt redéfinis pour le client %s (%d centres)",

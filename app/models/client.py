@@ -116,22 +116,23 @@ class ClientModel:
             ``True`` si la suppression a réussi, ``False`` sinon.
         """
         try:
-            # Supprimer les liaisons relationnelles
-            self.db.execute(
-                "DELETE FROM conjoints WHERE client_id = ? OR conjoint_client_id = ?",
-                (client_id, client_id),
-            )
-            self.db.execute(
-                "DELETE FROM enfants WHERE client_id = ? OR enfant_client_id = ?",
-                (client_id, client_id),
-            )
-            self.db.execute(
-                "DELETE FROM parents_clients WHERE client_id = ? OR parent_client_id = ?",
-                (client_id, client_id),
-            )
+            with self.db.transaction():
+                # Supprimer les liaisons relationnelles
+                self.db.execute(
+                    "DELETE FROM conjoints WHERE client_id = ? OR conjoint_client_id = ?",
+                    (client_id, client_id),
+                )
+                self.db.execute(
+                    "DELETE FROM enfants WHERE client_id = ? OR enfant_client_id = ?",
+                    (client_id, client_id),
+                )
+                self.db.execute(
+                    "DELETE FROM parents_clients WHERE client_id = ? OR parent_client_id = ?",
+                    (client_id, client_id),
+                )
 
-            # Supprimer le client lui-même
-            self.db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
+                # Supprimer le client lui-même
+                self.db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
 
             logger.info("Client %s supprimé avec succès", client_id)
             return True
