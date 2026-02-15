@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Application data
+app/data/app.db
+app/data/attachments/*
+app/data/logs/*
+app/data/backups/*
+!app/data/attachments/.gitkeep
+!app/data/logs/.gitkeep
+
+# Environment
+.env
+
+# Photos clients
+app/photos_clients/*
+!app/photos_clients/.gitkeep

@@ -1,0 +1,1020 @@
+"""Vue pour l'onglet Vente (enregistrement de ventes multi-articles)."""
+
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
+    QLabel, QLineEdit, QComboBox, QPushButton,
+    QSpinBox, QDoubleSpinBox, QDateEdit, QTextEdit,
+    QGroupBox, QTableWidget, QTableWidgetItem,
+    QHeaderView, QMessageBox, QSizePolicy,
+    QAbstractItemView, QScrollArea, QAbstractSpinBox,
+)
+from PySide6.QtCore import Qt, QDate
+from PySide6.QtGui import QFont
+
+from views.client_card import SearchResultsWidget
+
+
+class VenteView(QWidget):
+    """Vue pour l'onglet d'enregistrement des ventes."""
+
+    def __init__(self, viewmodel=None):
+        super().__init__()
+
+        # Creer le ViewModel si non fourni
+        if viewmodel is None:
+            from viewmodels.vente_vm import VenteViewModel
+            self.viewmodel = VenteViewModel()
+        else:
+            self.viewmodel = viewmodel
+
+        # Variable pour stocker l'ID du client selectionne
+        self._client_id = None
+        # Code promo valide (dict ou None)
+        self._code_promo_valide = None
+        # Liste des articles ajoutes
+        self._articles = []
+
+        self._construire_ui()
+        self._connecter_signaux()
+        self._charger_categories()
+
+    # ------------------------------------------------------------------ #
+    #                        Construction de l'UI                         #
+    # ------------------------------------------------------------------ #
+
+    def _construire_ui(self):
+        """Construit l'interface."""
+
+        # Conteneur scrollable
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: #FFFFFF; }")
+
+        conteneur = QWidget()
+        conteneur.setStyleSheet("background-color: #FFFFFF;")
+        layout_principal = QVBoxLayout(conteneur)
+        layout_principal.setSpacing(16)
+
+        # --- Titre ---
+        label_titre = QLabel("Enregistrer une vente")
+        font_titre = QFont()
+        font_titre.setPointSize(16)
+        font_titre.setBold(True)
+        label_titre.setFont(font_titre)
+        layout_principal.addWidget(label_titre)
+
+        # --- Section 1 : Selection du client ---
+        groupe_client = QGroupBox("Client")
+        layout_client = QVBoxLayout(groupe_client)
+
+        # Champ de recherche
+        self.input_recherche_client = QLineEdit()
+        self.input_recherche_client.setPlaceholderText(
+            "Rechercher un client (nom, prenom, email, telephone)..."
+        )
+        self.input_recherche_client.setFixedHeight(40)
+        self.input_recherche_client.setStyleSheet("font-size: 13pt;")
+        layout_client.addWidget(self.input_recherche_client)
+
+        # Resultats de recherche (cards)
+        self._search_results = SearchResultsWidget()
+        self._search_results.setVisible(False)
+        layout_client.addWidget(self._search_results)
+
+        # Widget client selectionne (masque par defaut)
+        self._widget_client_selectionne = QWidget()
+        layout_sel = QHBoxLayout(self._widget_client_selectionne)
+        layout_sel.setContentsMargins(0, 5, 0, 5)
+
+        self.label_client_selectionne = QLabel("")
+        self.label_client_selectionne.setStyleSheet(
+            "font-size: 13pt; font-weight: bold; color: #333;"
+        )
+        layout_sel.addWidget(self.label_client_selectionne)
+
+        layout_sel.addStretch()
+
+        self._btn_changer_client = QPushButton("Changer de client")
+        self._btn_changer_client.setStyleSheet(
+            "QPushButton { background-color: #FF9800; color: white; "
+            "padding: 6px 14px; border-radius: 4px; border: none; font-size: 11pt; }"
+            "QPushButton:hover { background-color: #F57C00; }"
+        )
+        self._btn_changer_client.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout_sel.addWidget(self._btn_changer_client)
+
+        self._widget_client_selectionne.setVisible(False)
+        layout_client.addWidget(self._widget_client_selectionne)
+
+        layout_principal.addWidget(groupe_client)
+
+        # --- Section 2 : Selection du produit ---
+        groupe_produit = QGroupBox("Produit")
+        layout_produit = QVBoxLayout(groupe_produit)
+
+        # Ligne 1 : Categorie
+        layout_categorie = QHBoxLayout()
+        label_categorie = QLabel("Categorie :")
+        self.combo_categorie = QComboBox()
+        self.combo_categorie.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        self.btn_nouvelle_categorie = QPushButton("+ Nouvelle categorie")
+        self.btn_nouvelle_categorie.setProperty("class", "btn-primary")
+        self.btn_nouvelle_categorie.setMaximumWidth(180)
+
+        layout_categorie.addWidget(label_categorie)
+        layout_categorie.addWidget(self.combo_categorie)
+        layout_categorie.addWidget(self.btn_nouvelle_categorie)
+        layout_produit.addLayout(layout_categorie)
+
+        # Ligne 2 : Produit
+        layout_produit_row = QHBoxLayout()
+        label_produit = QLabel("Produit :")
+        self.combo_produit = QComboBox()
+        self.combo_produit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        self.btn_nouveau_produit = QPushButton("+ Nouveau produit")
+        self.btn_nouveau_produit.setProperty("class", "btn-primary")
+        self.btn_nouveau_produit.setMaximumWidth(180)
+
+        layout_produit_row.addWidget(label_produit)
+        layout_produit_row.addWidget(self.combo_produit)
+        layout_produit_row.addWidget(self.btn_nouveau_produit)
+        layout_produit.addLayout(layout_produit_row)
+
+        # Label de stock
+        self.label_stock = QLabel("\U0001F4E6 Stock : \u2014")
+        self.label_stock.setStyleSheet(
+            "QLabel {"
+            "    font-size: 12pt;"
+            "    color: #666;"
+            "    font-weight: 600;"
+            "    padding: 10px;"
+            "    background-color: #F5F5F5;"
+            "    border-radius: 6px;"
+            "}"
+        )
+        layout_produit.addWidget(self.label_stock)
+
+        layout_principal.addWidget(groupe_produit)
+
+        # --- Section 3 : Details de l'article ---
+        groupe_details = QGroupBox("Details de l'article")
+        groupe_details.setStyleSheet(
+            "QGroupBox { padding: 20px; margin-top: 10px; }"
+            "QGroupBox::title { padding: 0 8px; }"
+        )
+        layout_details = QFormLayout(groupe_details)
+        layout_details.setSpacing(12)
+        layout_details.setContentsMargins(15, 25, 15, 15)
+
+        spinbox_style = (
+            "QSpinBox, QDoubleSpinBox {"
+            "    min-height: 44px;"
+            "    font-size: 13pt;"
+            "    padding: 6px 12px;"
+            "    border: 2px solid #E0E0E0;"
+            "    border-radius: 10px;"
+            "    background: white;"
+            "}"
+            "QSpinBox:focus, QDoubleSpinBox:focus {"
+            "    border: 2px solid #2196F3;"
+            "}"
+            "QSpinBox::up-button, QSpinBox::down-button,"
+            "QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {"
+            "    width: 36px;"
+            "    border: none;"
+            "    background: #2196F3;"
+            "}"
+            "QSpinBox::up-button:hover, QSpinBox::down-button:hover,"
+            "QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {"
+            "    background: #1976D2;"
+            "}"
+            "QSpinBox::up-button, QDoubleSpinBox::up-button {"
+            "    border-top-right-radius: 8px;"
+            "}"
+            "QSpinBox::down-button, QDoubleSpinBox::down-button {"
+            "    border-bottom-right-radius: 8px;"
+            "}"
+        )
+
+        # Quantite
+        self.spin_quantite = QSpinBox()
+        self.spin_quantite.setMinimum(1)
+        self.spin_quantite.setMaximum(9999)
+        self.spin_quantite.setValue(1)
+        self.spin_quantite.setButtonSymbols(QAbstractSpinBox.PlusMinus)
+        self.spin_quantite.setAccelerated(True)
+        self.spin_quantite.setMinimumHeight(40)
+        self.spin_quantite.setMinimumWidth(100)
+        self.spin_quantite.setStyleSheet(spinbox_style)
+        layout_details.addRow("Quantite :", self.spin_quantite)
+
+        # Prix unitaire
+        self.spin_prix = QDoubleSpinBox()
+        self.spin_prix.setMinimum(0)
+        self.spin_prix.setMaximum(999999.99)
+        self.spin_prix.setDecimals(2)
+        self.spin_prix.setSuffix(" \u20ac")
+        self.spin_prix.setButtonSymbols(QAbstractSpinBox.PlusMinus)
+        self.spin_prix.setAccelerated(True)
+        self.spin_prix.setMinimumHeight(40)
+        self.spin_prix.setMinimumWidth(150)
+        self.spin_prix.setStyleSheet(spinbox_style)
+        layout_details.addRow("Prix unitaire :", self.spin_prix)
+
+        # Sous-total article (preview)
+        self.label_sous_total = QLabel("0,00 \u20ac")
+        self.label_sous_total.setStyleSheet(
+            "font-size: 14pt; font-weight: bold; color: #666; padding: 10px;"
+        )
+        layout_details.addRow("Sous-total :", self.label_sous_total)
+
+        layout_principal.addWidget(groupe_details)
+
+        # --- Bouton Ajouter l'article ---
+        self.btn_ajouter_article = QPushButton("Ajouter cet article")
+        self.btn_ajouter_article.setStyleSheet(
+            "QPushButton { background-color: #4CAF50; color: white; "
+            "border: none; border-radius: 8px; padding: 12px 24px; "
+            "font-size: 13pt; font-weight: bold; }"
+            "QPushButton:hover { background-color: #388E3C; }"
+        )
+        self.btn_ajouter_article.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout_principal.addWidget(self.btn_ajouter_article)
+
+        # --- Section 4 : Tableau des articles ---
+        groupe_articles = QGroupBox("Articles de la vente")
+        layout_articles = QVBoxLayout(groupe_articles)
+
+        self.table_articles = QTableWidget()
+        self.table_articles.setColumnCount(5)
+        self.table_articles.setHorizontalHeaderLabels([
+            "Produit", "Quantite", "Prix unitaire", "Total", "Actions"
+        ])
+        self.table_articles.horizontalHeader().setStretchLastSection(True)
+        self.table_articles.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Stretch
+        )
+        self.table_articles.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table_articles.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table_articles.verticalHeader().setVisible(False)
+        self.table_articles.setMinimumHeight(150)
+        self.table_articles.setRowCount(0)
+        layout_articles.addWidget(self.table_articles)
+
+        # Label quand aucun article
+        self.label_aucun_article = QLabel(
+            "Aucun article ajoute. Selectionnez un produit et cliquez "
+            "\"Ajouter cet article\"."
+        )
+        self.label_aucun_article.setAlignment(Qt.AlignCenter)
+        self.label_aucun_article.setStyleSheet(
+            "color: #999; font-style: italic; padding: 20px;"
+        )
+        layout_articles.addWidget(self.label_aucun_article)
+
+        layout_principal.addWidget(groupe_articles)
+
+        # --- Section 5 : Code promotionnel ---
+        groupe_promo = QGroupBox("Code promotionnel")
+        layout_promo = QVBoxLayout(groupe_promo)
+
+        layout_promo_row = QHBoxLayout()
+
+        self.input_code_promo = QLineEdit()
+        self.input_code_promo.setPlaceholderText(
+            "Entrez un code promo (optionnel)"
+        )
+        layout_promo_row.addWidget(self.input_code_promo)
+
+        self.btn_verifier_code = QPushButton("Verifier")
+        self.btn_verifier_code.setProperty("class", "btn-primary")
+        self.btn_verifier_code.setMaximumWidth(120)
+        layout_promo_row.addWidget(self.btn_verifier_code)
+
+        layout_promo.addLayout(layout_promo_row)
+
+        self.label_code_promo = QLabel("")
+        self.label_code_promo.setStyleSheet("font-weight: bold;")
+        layout_promo.addWidget(self.label_code_promo)
+
+        layout_principal.addWidget(groupe_promo)
+
+        # --- Section 6 : Total general ---
+        groupe_total = QGroupBox("Total")
+        layout_total_box = QVBoxLayout(groupe_total)
+
+        self.label_total = QLabel("0,00 \u20ac")
+        self.label_total.setStyleSheet(
+            "font-size: 22pt; font-weight: bold; color: #2196F3; padding: 15px;"
+        )
+        self.label_total.setAlignment(Qt.AlignCenter)
+        layout_total_box.addWidget(self.label_total)
+
+        layout_principal.addWidget(groupe_total)
+
+        # --- Section 7 : Date et notes ---
+        groupe_infos = QGroupBox("Informations complementaires")
+        layout_infos = QFormLayout(groupe_infos)
+        layout_infos.setSpacing(12)
+
+        # Date de vente
+        self.date_vente = QDateEdit()
+        self.date_vente.setCalendarPopup(True)
+        self.date_vente.setDate(QDate.currentDate())
+        self.date_vente.setDisplayFormat("dd/MM/yyyy")
+        self.date_vente.setMinimumHeight(40)
+        self.date_vente.setStyleSheet("font-size: 14pt; padding: 5px;")
+        layout_infos.addRow("Date de vente :", self.date_vente)
+
+        # Notes (optionnel)
+        self.texte_notes = QTextEdit()
+        self.texte_notes.setFixedHeight(70)
+        self.texte_notes.setPlaceholderText("Notes (optionnel)")
+        layout_infos.addRow("Notes :", self.texte_notes)
+
+        layout_principal.addWidget(groupe_infos)
+
+        # --- Barre de boutons d'action ---
+        layout_boutons = QHBoxLayout()
+        layout_boutons.addStretch()
+
+        self.btn_annuler = QPushButton("\U0001F5D1\uFE0F Annuler")
+        self.btn_annuler.setMinimumHeight(50)
+        self.btn_annuler.setMinimumWidth(150)
+        self.btn_annuler.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_annuler.setStyleSheet(
+            "QPushButton {"
+            "    background-color: #9E9E9E;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 8px;"
+            "    padding: 12px 24px;"
+            "    font-size: 13pt;"
+            "    font-weight: 600;"
+            "}"
+            "QPushButton:hover {"
+            "    background-color: #757575;"
+            "}"
+        )
+        layout_boutons.addWidget(self.btn_annuler)
+
+        self.btn_enregistrer = QPushButton("\u2705 Enregistrer la vente")
+        self.btn_enregistrer.setMinimumHeight(50)
+        self.btn_enregistrer.setMinimumWidth(200)
+        self.btn_enregistrer.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_enregistrer.setStyleSheet(
+            "QPushButton {"
+            "    background-color: #4CAF50;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 8px;"
+            "    padding: 12px 24px;"
+            "    font-size: 13pt;"
+            "    font-weight: 600;"
+            "}"
+            "QPushButton:hover {"
+            "    background-color: #45A049;"
+            "}"
+        )
+        layout_boutons.addWidget(self.btn_enregistrer)
+
+        layout_principal.addLayout(layout_boutons)
+
+        # --- Section 8 : Historique du client ---
+        groupe_historique = QGroupBox("Dernieres ventes du client")
+        layout_historique = QVBoxLayout(groupe_historique)
+
+        self.label_historique_vide = QLabel(
+            "Selectionnez un client pour voir son historique"
+        )
+        self.label_historique_vide.setAlignment(Qt.AlignCenter)
+        self.label_historique_vide.setStyleSheet(
+            "color: gray; font-style: italic;"
+        )
+        layout_historique.addWidget(self.label_historique_vide)
+
+        self.table_historique = QTableWidget()
+        self.table_historique.setColumnCount(4)
+        self.table_historique.setHorizontalHeaderLabels(
+            ["Date", "Produit", "Quantite", "Prix total"]
+        )
+        self.table_historique.horizontalHeader().setStretchLastSection(True)
+        self.table_historique.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch
+        )
+        self.table_historique.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table_historique.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table_historique.setAlternatingRowColors(True)
+        self.table_historique.verticalHeader().setVisible(False)
+        self.table_historique.setRowCount(0)
+        self.table_historique.hide()
+
+        layout_historique.addWidget(self.table_historique)
+
+        layout_principal.addWidget(groupe_historique)
+
+        layout_principal.addStretch()
+
+        # Finaliser le scroll
+        scroll.setWidget(conteneur)
+        layout_self = QVBoxLayout(self)
+        layout_self.setContentsMargins(0, 0, 0, 0)
+        layout_self.addWidget(scroll)
+
+    # ------------------------------------------------------------------ #
+    #                        Connexion des signaux                        #
+    # ------------------------------------------------------------------ #
+
+    def _connecter_signaux(self):
+        """Connecte les signaux aux slots."""
+
+        # Recherche client (cards)
+        self.input_recherche_client.textChanged.connect(
+            self._on_recherche_client
+        )
+        self._search_results.client_selected.connect(
+            self._on_client_selectionne
+        )
+        self._btn_changer_client.clicked.connect(self._deselectionner_client)
+
+        # Categorie / Produit
+        self.combo_categorie.currentIndexChanged.connect(
+            self._on_categorie_change
+        )
+        self.combo_produit.currentIndexChanged.connect(
+            self._on_produit_change
+        )
+
+        # Creation categorie / produit
+        self.btn_nouvelle_categorie.clicked.connect(self._creer_categorie)
+        self.btn_nouveau_produit.clicked.connect(self._creer_produit)
+
+        # Calcul du sous-total article
+        self.spin_quantite.valueChanged.connect(self._calculer_sous_total)
+        self.spin_prix.valueChanged.connect(self._calculer_sous_total)
+
+        # Ajouter article
+        self.btn_ajouter_article.clicked.connect(self._ajouter_article)
+
+        # Code promo
+        self.btn_verifier_code.clicked.connect(self._verifier_code_promo)
+        self.input_code_promo.returnPressed.connect(self._verifier_code_promo)
+
+        # Boutons d'action
+        self.btn_enregistrer.clicked.connect(self._enregistrer_vente)
+        self.btn_annuler.clicked.connect(self._annuler)
+
+    # ------------------------------------------------------------------ #
+    #                           Categories                                #
+    # ------------------------------------------------------------------ #
+
+    def _charger_categories(self):
+        """Charge les categories dans le combobox."""
+        categories = self.viewmodel.lister_categories()
+        self.combo_categorie.clear()
+        self.combo_categorie.addItem("-- Selectionner --", 0)
+        for cat in categories:
+            self.combo_categorie.addItem(cat['nom'], cat['id'])
+
+    def _on_categorie_change(self, index: int):
+        """Filtre les produits par categorie selectionnee."""
+        categorie_id = self.combo_categorie.currentData()
+        self.combo_produit.clear()
+        if categorie_id:
+            produits = self.viewmodel.lister_produits(categorie_id)
+            self.combo_produit.addItem("-- Selectionner --", 0)
+            for p in produits:
+                self.combo_produit.addItem(
+                    f"{p['nom']} - {p['prix']:.2f} \u20ac", p['id']
+                )
+
+    # ------------------------------------------------------------------ #
+    #                            Produits                                 #
+    # ------------------------------------------------------------------ #
+
+    def _on_produit_change(self, index: int):
+        """Met a jour le prix unitaire et le stock quand un produit est selectionne."""
+        produit_id = self.combo_produit.currentData()
+        if not produit_id:
+            self.label_stock.setText("\U0001F4E6 Stock : \u2014")
+            self.label_stock.setStyleSheet(
+                "QLabel {"
+                "    font-size: 12pt; color: #666; font-weight: 600;"
+                "    padding: 10px; background-color: #F5F5F5; border-radius: 6px;"
+                "}"
+            )
+            self.spin_quantite.setEnabled(True)
+            self.spin_quantite.setMaximum(9999)
+            self._calculer_sous_total()
+            return
+
+        prix = self.viewmodel.obtenir_prix_produit(produit_id)
+        self.spin_prix.setValue(prix)
+
+        # Recuperer et afficher le stock
+        from models.produit import ProduitModel
+        produit_model = ProduitModel()
+        produit = produit_model.obtenir_produit(produit_id)
+
+        if produit:
+            stock = produit.get('stock', 0) or 0
+
+            if stock <= 0:
+                self.label_stock.setText("\U0001F4E6 Stock disponible : 0")
+                self.label_stock.setStyleSheet(
+                    "QLabel {"
+                    "    font-size: 12pt; color: #D32F2F; font-weight: bold;"
+                    "    padding: 10px; background-color: #FFEBEE;"
+                    "    border: 2px solid #F44336; border-radius: 6px;"
+                    "}"
+                )
+                self.spin_quantite.setEnabled(False)
+                self.spin_quantite.setValue(0)
+                QMessageBox.warning(
+                    self, "Stock \u00e9puis\u00e9",
+                    f"Le produit '{produit['nom']}' n'est plus en stock."
+                )
+            else:
+                self.label_stock.setText(f"\U0001F4E6 Stock disponible : {stock}")
+                self.label_stock.setStyleSheet(
+                    "QLabel {"
+                    "    font-size: 12pt; color: #1976D2; font-weight: 600;"
+                    "    padding: 10px; background-color: #E3F2FD;"
+                    "    border: 2px solid #2196F3; border-radius: 6px;"
+                    "}"
+                )
+                self.spin_quantite.setEnabled(True)
+                self.spin_quantite.setMaximum(stock)
+                self.spin_quantite.setValue(1)
+
+        self._calculer_sous_total()
+
+    def _calculer_sous_total(self):
+        """Calcule et affiche le sous-total de l'article en cours."""
+        quantite = self.spin_quantite.value()
+        prix = self.spin_prix.value()
+        sous_total = quantite * prix
+        self.label_sous_total.setText(f"{sous_total:.2f} \u20ac")
+
+    # ------------------------------------------------------------------ #
+    #                      Multi-articles                                 #
+    # ------------------------------------------------------------------ #
+
+    def _ajouter_article(self):
+        """Ajoute l'article actuel a la liste des articles."""
+        produit_id = self.combo_produit.currentData()
+        if not produit_id:
+            QMessageBox.warning(
+                self, "Attention", "Veuillez selectionner un produit."
+            )
+            return
+
+        quantite = self.spin_quantite.value()
+        prix_unitaire = self.spin_prix.value()
+        total = quantite * prix_unitaire
+        produit_nom = self.combo_produit.currentText()
+
+        # Stocker les donnees
+        article = {
+            'produit_id': produit_id,
+            'produit_nom': produit_nom,
+            'quantite': quantite,
+            'prix_unitaire': prix_unitaire,
+            'total': total,
+        }
+        self._articles.append(article)
+
+        # Ajouter a la table
+        row = self.table_articles.rowCount()
+        self.table_articles.insertRow(row)
+
+        self.table_articles.setItem(
+            row, 0, QTableWidgetItem(produit_nom)
+        )
+        self.table_articles.setItem(
+            row, 1, QTableWidgetItem(str(quantite))
+        )
+        self.table_articles.setItem(
+            row, 2, QTableWidgetItem(f"{prix_unitaire:.2f} \u20ac")
+        )
+        self.table_articles.setItem(
+            row, 3, QTableWidgetItem(f"{total:.2f} \u20ac")
+        )
+
+        # Bouton supprimer
+        btn_supprimer = QPushButton("Supprimer")
+        btn_supprimer.setStyleSheet(
+            "QPushButton {"
+            "    background-color: #F44336;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 5px;"
+            "    padding: 5px 10px;"
+            "}"
+            "QPushButton:hover { background-color: #D32F2F; }"
+        )
+        btn_supprimer.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_supprimer.clicked.connect(
+            lambda checked=False, r=row: self._supprimer_article(r)
+        )
+        self.table_articles.setCellWidget(row, 4, btn_supprimer)
+
+        # Masquer le label "aucun article"
+        self.label_aucun_article.setVisible(False)
+
+        # Reinitialiser le formulaire produit
+        self.spin_quantite.setValue(1)
+        self.spin_prix.setValue(0)
+        self.combo_produit.setCurrentIndex(0)
+
+        # Recalculer le total general
+        self._calculer_total_general()
+
+    def _supprimer_article(self, row: int):
+        """Supprime un article de la liste."""
+        if row < len(self._articles):
+            self._articles.pop(row)
+
+        # Reconstruire la table
+        self.table_articles.setRowCount(0)
+        for i, article in enumerate(self._articles):
+            self.table_articles.insertRow(i)
+            self.table_articles.setItem(
+                i, 0, QTableWidgetItem(article['produit_nom'])
+            )
+            self.table_articles.setItem(
+                i, 1, QTableWidgetItem(str(article['quantite']))
+            )
+            self.table_articles.setItem(
+                i, 2,
+                QTableWidgetItem(f"{article['prix_unitaire']:.2f} \u20ac"),
+            )
+            self.table_articles.setItem(
+                i, 3,
+                QTableWidgetItem(f"{article['total']:.2f} \u20ac"),
+            )
+
+            btn_supprimer = QPushButton("Supprimer")
+            btn_supprimer.setStyleSheet(
+                "QPushButton {"
+                "    background-color: #F44336;"
+                "    color: white;"
+                "    border: none;"
+                "    border-radius: 5px;"
+                "    padding: 5px 10px;"
+                "}"
+                "QPushButton:hover { background-color: #D32F2F; }"
+            )
+            btn_supprimer.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_supprimer.clicked.connect(
+                lambda checked=False, r=i: self._supprimer_article(r)
+            )
+            self.table_articles.setCellWidget(i, 4, btn_supprimer)
+
+        if not self._articles:
+            self.label_aucun_article.setVisible(True)
+
+        self._calculer_total_general()
+
+    def _calculer_total_general(self):
+        """Calcule le total general de tous les articles avec code promo."""
+        total = sum(a['total'] for a in self._articles)
+
+        if self._code_promo_valide and total > 0:
+            pourcentage = self._code_promo_valide.get('pourcentage', 0)
+            reduction = total * pourcentage / 100
+            total_final = total - reduction
+            self.label_total.setText(
+                f"<s>{total:.2f} \u20ac</s>  \u2192  {total_final:.2f} \u20ac "
+                f"<span style='color: #4CAF50;'>(-{pourcentage:.0f}%)</span>"
+            )
+        else:
+            self.label_total.setText(f"{total:.2f} \u20ac")
+
+    # ------------------------------------------------------------------ #
+    #                      Code promotionnel                              #
+    # ------------------------------------------------------------------ #
+
+    def _verifier_code_promo(self):
+        """Verifie la validite d'un code promotionnel."""
+        code = self.input_code_promo.text().strip()
+        if not code:
+            self._code_promo_valide = None
+            self.label_code_promo.setText("")
+            self._calculer_total_general()
+            return
+
+        from models.code_reduction import CodeReductionModel
+        model = CodeReductionModel()
+        resultat, message, type_erreur = model.verifier_code(code, self._client_id)
+
+        if type_erreur is None:
+            self._code_promo_valide = resultat
+            self.label_code_promo.setText(
+                f"\u2705 Code valide : -{resultat['pourcentage']:.0f}%"
+            )
+            self.label_code_promo.setStyleSheet(
+                "font-weight: bold; color: #4CAF50;"
+            )
+        else:
+            self._code_promo_valide = None
+            self.label_code_promo.setText(message or "Code invalide")
+            if type_erreur == "EXPIRE":
+                self.label_code_promo.setStyleSheet(
+                    "font-weight: bold; color: #F57C00;"
+                )
+            elif type_erreur == "EPUISE":
+                self.label_code_promo.setStyleSheet(
+                    "font-weight: bold; color: #D32F2F;"
+                )
+            else:
+                self.label_code_promo.setStyleSheet(
+                    "font-weight: bold; color: #F44336;"
+                )
+        self._calculer_total_general()
+
+    # ------------------------------------------------------------------ #
+    #                     Recherche & selection client                    #
+    # ------------------------------------------------------------------ #
+
+    def _on_recherche_client(self, texte: str):
+        """Recherche des clients et affiche les resultats."""
+        if len(texte) < 2:
+            self._search_results.vider()
+            self._search_results.setVisible(False)
+            return
+
+        resultats = self.viewmodel.rechercher_clients(texte)
+        search_terms = texte.split()
+        self._search_results.afficher_resultats(resultats, search_terms)
+        self._search_results.setVisible(True)
+
+    def _on_client_selectionne(self, client_id: int):
+        """Callback quand un client est selectionne via une card."""
+        self._client_id = client_id
+
+        # Recuperer les infos du client
+        from models.database import get_db
+        db = get_db()
+        client = db.fetchone(
+            "SELECT nom, prenom, email FROM clients WHERE id = ?",
+            (client_id,),
+        )
+        if client:
+            nom = (client.get('nom') or '').upper()
+            prenom = client.get('prenom') or ''
+            email = client.get('email') or ''
+            self.label_client_selectionne.setText(
+                f"Client : {nom} {prenom} ({email})"
+            )
+
+        # Masquer la recherche, afficher le client selectionne
+        self._search_results.setVisible(False)
+        self.input_recherche_client.blockSignals(True)
+        self.input_recherche_client.clear()
+        self.input_recherche_client.setVisible(False)
+        self.input_recherche_client.blockSignals(False)
+        self._widget_client_selectionne.setVisible(True)
+
+        self._charger_historique(client_id)
+
+    def _deselectionner_client(self):
+        """Deselectionne le client et re-affiche la barre de recherche."""
+        self._client_id = None
+        self._widget_client_selectionne.setVisible(False)
+        self.input_recherche_client.setVisible(True)
+        self.input_recherche_client.setFocus()
+        self.label_client_selectionne.setText("")
+        self.table_historique.setRowCount(0)
+        self.table_historique.hide()
+        self.label_historique_vide.show()
+
+    # ------------------------------------------------------------------ #
+    #                      Historique des ventes                          #
+    # ------------------------------------------------------------------ #
+
+    def _charger_historique(self, client_id: int):
+        """Charge l'historique des ventes du client dans le tableau."""
+        ventes = self.viewmodel.obtenir_historique_client(client_id)
+
+        if ventes:
+            self.label_historique_vide.hide()
+            self.table_historique.show()
+        else:
+            self.label_historique_vide.show()
+            self.table_historique.hide()
+
+        self.table_historique.setRowCount(len(ventes))
+        for i, vente in enumerate(ventes):
+            self.table_historique.setItem(
+                i, 0, QTableWidgetItem(vente.get('date_vente', ''))
+            )
+            self.table_historique.setItem(
+                i, 1,
+                QTableWidgetItem(
+                    vente.get('nom_produit', vente.get('nom', ''))
+                ),
+            )
+            self.table_historique.setItem(
+                i, 2, QTableWidgetItem(str(vente.get('quantite', 0)))
+            )
+            self.table_historique.setItem(
+                i, 3,
+                QTableWidgetItem(
+                    f"{vente.get('prix_total', 0):.2f} \u20ac"
+                ),
+            )
+
+    # ------------------------------------------------------------------ #
+    #                   Creation categorie / produit                      #
+    # ------------------------------------------------------------------ #
+
+    def _creer_categorie(self):
+        """Popup pour creer une nouvelle categorie."""
+        from PySide6.QtWidgets import QInputDialog
+
+        nom, ok = QInputDialog.getText(
+            self, "Nouvelle categorie", "Nom de la categorie :"
+        )
+        if ok and nom.strip():
+            cat_id = self.viewmodel.creer_categorie(nom.strip())
+            if cat_id:
+                self._charger_categories()
+                index = self.combo_categorie.findData(cat_id)
+                if index >= 0:
+                    self.combo_categorie.setCurrentIndex(index)
+
+    def _creer_produit(self):
+        """Popup pour creer un nouveau produit."""
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout
+
+        categorie_id = self.combo_categorie.currentData()
+        if not categorie_id:
+            QMessageBox.warning(
+                self, "Attention", "Selectionnez d'abord une categorie."
+            )
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Nouveau produit")
+        dialog.setMinimumWidth(350)
+        layout = QFormLayout(dialog)
+
+        input_nom = QLineEdit()
+        input_nom.setPlaceholderText("Nom du produit")
+
+        input_prix = QDoubleSpinBox()
+        input_prix.setMaximum(999999.99)
+        input_prix.setDecimals(2)
+        input_prix.setSuffix(" \u20ac")
+
+        layout.addRow("Nom :", input_nom)
+        layout.addRow("Prix :", input_prix)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+
+        if dialog.exec() == QDialog.Accepted and input_nom.text().strip():
+            prod_id = self.viewmodel.creer_produit(
+                categorie_id, input_nom.text().strip(), input_prix.value()
+            )
+            if prod_id:
+                self._on_categorie_change(
+                    self.combo_categorie.currentIndex()
+                )
+                index = self.combo_produit.findData(prod_id)
+                if index >= 0:
+                    self.combo_produit.setCurrentIndex(index)
+
+    # ------------------------------------------------------------------ #
+    #                    Enregistrement de la vente                       #
+    # ------------------------------------------------------------------ #
+
+    def _enregistrer_vente(self):
+        """Enregistre la vente (tous les articles) via le ViewModel avec verification du stock."""
+        if not self._client_id:
+            QMessageBox.warning(
+                self, "Attention", "Veuillez selectionner un client."
+            )
+            return
+
+        if not self._articles:
+            QMessageBox.warning(
+                self, "Attention",
+                "Veuillez ajouter au moins un article a la vente.",
+            )
+            return
+
+        # Verifier le stock de tous les articles avant d'enregistrer
+        from models.produit import ProduitModel
+        produit_model = ProduitModel()
+
+        for article in self._articles:
+            produit = produit_model.obtenir_produit(article['produit_id'])
+            if produit:
+                stock_disponible = produit.get('stock', 0) or 0
+                if article['quantite'] > stock_disponible:
+                    QMessageBox.critical(
+                        self,
+                        "Stock insuffisant",
+                        f"\U0001F4E6 Produit : {article['produit_nom']}\n"
+                        f"\U0001F4E6 Stock disponible : {stock_disponible}\n"
+                        f"\U0001F4E6 Quantite demandee : {article['quantite']}\n\n"
+                        "\u274C Impossible d'enregistrer la vente.",
+                    )
+                    return
+
+        # Calculer le pourcentage de promo
+        pourcentage_promo = 0
+        if self._code_promo_valide:
+            pourcentage_promo = self._code_promo_valide.get('pourcentage', 0)
+
+        date_str = self.date_vente.date().toString("yyyy-MM-dd")
+        notes = self.texte_notes.toPlainText()
+        premier_vente_id = None
+
+        # Creer une vente par article
+        for article in self._articles:
+            prix_total = article['total']
+            if pourcentage_promo > 0:
+                prix_total = prix_total * (1 - pourcentage_promo / 100)
+
+            vente_id = self.viewmodel.enregistrer_vente(
+                client_id=self._client_id,
+                produit_id=article['produit_id'],
+                quantite=article['quantite'],
+                prix_unitaire=article['prix_unitaire'],
+                date_vente=date_str,
+                notes=notes,
+            )
+
+            if premier_vente_id is None:
+                premier_vente_id = vente_id
+
+            # Decrementer le stock
+            produit = produit_model.obtenir_produit(article['produit_id'])
+            if produit:
+                stock_actuel = produit.get('stock', 0) or 0
+                nouveau_stock = stock_actuel - article['quantite']
+                produit_model.modifier_produit(
+                    article['produit_id'],
+                    {'stock': nouveau_stock},
+                )
+
+        # Enregistrer l'utilisation du code promo
+        if self._code_promo_valide and premier_vente_id:
+            from models.code_reduction import CodeReductionModel
+            code_model = CodeReductionModel()
+            code_model.enregistrer_utilisation(
+                code_id=self._code_promo_valide['id'],
+                client_id=self._client_id,
+                vente_id=premier_vente_id,
+            )
+
+        nb = len(self._articles)
+        QMessageBox.information(
+            self, "\u2705 Succ\u00e8s",
+            f"Vente enregistree avec succes ({nb} article(s)) !",
+        )
+        self._charger_historique(self._client_id)
+        self._reinitialiser_formulaire_vente()
+
+    # ------------------------------------------------------------------ #
+    #                       Reinitialisation                              #
+    # ------------------------------------------------------------------ #
+
+    def _reinitialiser_formulaire_vente(self):
+        """Reinitialise le formulaire de vente (mais garde le client)."""
+        self.combo_categorie.setCurrentIndex(0)
+        self.combo_produit.clear()
+        self.spin_quantite.setValue(1)
+        self.spin_prix.setValue(0)
+        self.label_sous_total.setText("0,00 \u20ac")
+        self.label_total.setText("0,00 \u20ac")
+        self.date_vente.setDate(QDate.currentDate())
+        self.texte_notes.clear()
+        self.input_code_promo.clear()
+        self.label_code_promo.setText("")
+        self._code_promo_valide = None
+        self._articles.clear()
+        self.table_articles.setRowCount(0)
+        self.label_aucun_article.setVisible(True)
+
+    def _annuler(self):
+        """Annule et reinitialise tout le formulaire."""
+        self._client_id = None
+        self.input_recherche_client.clear()
+        self.label_client_selectionne.setText("")
+        self._widget_client_selectionne.setVisible(False)
+        self.input_recherche_client.setVisible(True)
+        self._reinitialiser_formulaire_vente()
+        self.table_historique.setRowCount(0)
+        self.table_historique.hide()
+        self.label_historique_vide.show()

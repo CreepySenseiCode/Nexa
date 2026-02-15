@@ -1,0 +1,1317 @@
+Plan Complet et Détaillé de l'Application de Gestion Client et Emailing - VERSION FINALE
+1. Vue d'ensemble du projet
+Nom du projet : Application de gestion de clientèle et d'emailing pour petits commerçants
+Objectif : Créer une application desktop multi-OS permettant aux petites entreprises locales de gérer leurs clients, leurs ventes, et leurs campagnes d'emailing de manière simple et professionnelle, sans connaissances informatiques requises.
+Public cible : Petits commerçants (fleuristes, friperies, boutiques locales, etc.) avec une base de 1 000 à 10 000 clients (dimensionné jusqu'à 50 000 max)
+
+2. Stack technique
+Technologies principales :
+	•	Langage : Python
+	•	Interface graphique : PySide6 (Qt for Python)
+	•	Base de données : SQLite (fichier local unique)
+	•	Graphiques : Plotly (intégré via QWebEngineView)
+	•	Emailing : smtplib + email (bibliothèques Python natives) + imaplib (réception emails)
+	•	Service d'envoi automatisé : Daemon/Service système ou scheduler Python (APScheduler)
+	•	Architecture : MVVM (Model-View-ViewModel)
+Compatibilité :
+	•	OS supportés : macOS, Windows, Linux
+	•	Développement principal : macOS
+	•	Tests : macOS + Windows
+Environnement :
+	•	Virtualenv : venv avec toutes les dépendances
+	•	Gestion des dépendances : requirements.txt
+
+3. Système de modes d'utilisation
+Mode Vendeur (par défaut) :
+Accès libre à :
+	•	Onglet "Client" (création/modification)
+	•	Onglet "Vente" (enregistrement des achats)
+	•	Onglet "Recherche" (consultation des profils clients)
+Accès bloqué à :
+	•	Onglet "Emailing"
+	•	Onglet "Boîte de réception"
+	•	Onglet "Statistiques"
+	•	Onglet "Mails enregistrés"
+	•	Onglet "Historique"
+	•	Onglet "Calendrier"
+	•	Onglet "Produits"
+	•	Onglet "Paramètres"
+Mode Patron (protégé par mot de passe) :
+Accès total à tous les onglets et fonctionnalités
+Système de verrouillage :
+	•	Icône cadenas visible en permanence dans l'interface
+	•	Cadenas fermé = Mode vendeur
+	•	Cadenas ouvert = Mode patron
+	•	Clic sur le cadenas fermé : Demande du mot de passe → Déverrouillage
+	•	Clic sur le cadenas ouvert : Verrouillage instantané (retour au mode vendeur)
+Sécurité du mot de passe :
+	•	Stockage : Hashé et sécurisé dans la base de données
+	•	Mot de passe unique : Un seul mot de passe maître pour toute l'application
+	•	Récupération : Envoi du mot de passe par email sur l'adresse email principale pré-enregistrée dans l'application
+
+4. Structure de la base de données SQLite
+Table champs_clients_actifs :
+Objectif : Définir quels champs d'information clients sont activés pour cette entreprise
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	nom_champ (TEXT, ex: "date_naissance", "situation_maritale", "a_enfants", "a_parents", "parents_en_vie", etc.)
+	•	actif (BOOLEAN, TRUE si le champ est utilisé)
+	•	obligatoire (BOOLEAN, TRUE si le champ est obligatoire pour un profil complet)
+	•	depend_de (TEXT, nom du champ parent, NULL si indépendant)
+	•	valeur_dependance (TEXT, valeur que le champ parent doit avoir pour que ce champ soit affiché)
+	•	type_champ (TEXT : "texte", "date", "nombre", "booleen", "liste", "email", "telephone")
+	•	ordre_affichage (INTEGER, pour l'ordre dans le formulaire)
+Champs par défaut disponibles (tous désactivables sauf nom et prénom) :
+	•	nom (obligatoire, toujours actif)
+	•	prenom (obligatoire, toujours actif)
+	•	date_naissance (recommandé)
+	•	adresse
+	•	ville
+	•	code_postal
+	•	email
+	•	telephone
+	•	situation_maritale (liste : Célibataire / En couple / Marié(e) / Pacsé(e) / Divorcé(e) / Veuf/Veuve)
+	•	a_conjoint (booléen, dépend de situation_maritale = "En couple" / "Marié(e)" / "Pacsé(e)")
+	•	nom_conjoint (dépend de a_conjoint = TRUE)
+	•	prenom_conjoint (dépend de a_conjoint = TRUE)
+	•	date_naissance_conjoint (dépend de a_conjoint = TRUE)
+	•	email_conjoint (dépend de a_conjoint = TRUE)
+	•	telephone_conjoint (dépend de a_conjoint = TRUE)
+	•	a_enfants (booléen)
+	•	nombre_enfants (nombre, dépend de a_enfants = TRUE)
+	•	a_parents (booléen)
+	•	parents_en_vie (booléen, dépend de a_parents = TRUE)
+	•	nom_pere (dépend de parents_en_vie = TRUE)
+	•	prenom_pere (dépend de parents_en_vie = TRUE)
+	•	date_naissance_pere (dépend de parents_en_vie = TRUE)
+	•	email_pere (dépend de parents_en_vie = TRUE)
+	•	telephone_pere (dépend de parents_en_vie = TRUE)
+	•	nom_mere (dépend de parents_en_vie = TRUE)
+	•	prenom_mere (dépend de parents_en_vie = TRUE)
+	•	date_naissance_mere (dépend de parents_en_vie = TRUE)
+	•	email_mere (dépend de parents_en_vie = TRUE)
+	•	telephone_mere (dépend de parents_en_vie = TRUE)
+	•	profession
+	•	centre_interet
+	•	notes_personnalisees (champ texte libre)
+Table clients :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	nom (TEXT, obligatoire, stocké en MAJUSCULES automatiquement)
+	•	prenom (TEXT, obligatoire, première lettre en majuscule automatiquement)
+	•	date_naissance (TEXT format JJ/MM/AAAA, optionnel mais recommandé)
+	•	age (INTEGER, calculé automatiquement à partir de la date de naissance)
+	•	adresse (TEXT, optionnel)
+	•	ville (TEXT, optionnel)
+	•	code_postal (TEXT, optionnel)
+	•	email (TEXT, optionnel, validation format email)
+	•	telephone (TEXT, optionnel)
+	•	situation_maritale (TEXT, optionnel)
+	•	a_conjoint (BOOLEAN, optionnel)
+	•	a_enfants (BOOLEAN, optionnel)
+	•	nombre_enfants (INTEGER, optionnel)
+	•	a_parents (BOOLEAN, optionnel)
+	•	parents_en_vie (BOOLEAN, optionnel)
+	•	profession (TEXT, optionnel)
+	•	centre_interet (TEXT, optionnel)
+	•	notes_personnalisees (TEXT, optionnel)
+	•	date_ajout (TIMESTAMP, automatique lors de la création)
+	•	date_creation (TIMESTAMP, automatique)
+	•	date_modification (TIMESTAMP, automatique)
+	•	profil_complet (BOOLEAN, calculé automatiquement : TRUE si tous les champs obligatoires actifs sont renseignés)
+	•	est_conjoint_de (INTEGER FOREIGN KEY → clients.id, NULL si client principal)
+	•	est_enfant_de (INTEGER FOREIGN KEY → clients.id, NULL si client principal)
+	•	est_parent_de (INTEGER FOREIGN KEY → clients.id, NULL si client principal)
+	•	type_relation (TEXT : "principal", "conjoint", "enfant", "pere", "mere")
+Table conjoints (simplification, liée à clients) :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	client_id (INTEGER FOREIGN KEY → clients.id)
+	•	conjoint_client_id (INTEGER FOREIGN KEY → clients.id, référence au compte client du conjoint)
+Table enfants :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	client_id (INTEGER FOREIGN KEY → clients.id, parent)
+	•	enfant_client_id (INTEGER FOREIGN KEY → clients.id, référence au compte client de l'enfant)
+	•	ordre (INTEGER, 1 pour enfant 1, 2 pour enfant 2, etc.)
+Table parents_clients :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	client_id (INTEGER FOREIGN KEY → clients.id)
+	•	parent_client_id (INTEGER FOREIGN KEY → clients.id)
+	•	type_parent (TEXT : "pere", "mere")
+Table categories_produits :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	nom (TEXT, défini par l'utilisateur)
+	•	date_creation (TIMESTAMP)
+Table attributs_produits :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	categorie_id (INTEGER FOREIGN KEY → categories_produits.id)
+	•	nom_attribut (TEXT, ex: "Couleur", "Matière", "Motif", "Marque", "Pays d'origine")
+	•	type_attribut (TEXT : "texte", "nombre", "liste")
+	•	par_defaut (BOOLEAN, TRUE pour "Marque" et autres attributs par défaut)
+	•	ordre_affichage (INTEGER)
+Attributs par défaut créés automatiquement pour chaque catégorie :
+	•	Marque (texte, par défaut actif, supprimable/éditable)
+	•	Pays d'origine (texte, par défaut actif, supprimable/éditable)
+Table produits :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	categorie_id (INTEGER FOREIGN KEY → categories_produits.id)
+	•	nom (TEXT)
+	•	prix (REAL, en euros par défaut)
+	•	description (TEXT, optionnel)
+	•	date_creation (TIMESTAMP)
+Table valeurs_attributs_produits :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	produit_id (INTEGER FOREIGN KEY → produits.id)
+	•	attribut_id (INTEGER FOREIGN KEY → attributs_produits.id)
+	•	valeur (TEXT)
+Table ventes :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	client_id (INTEGER FOREIGN KEY → clients.id)
+	•	produit_id (INTEGER FOREIGN KEY → produits.id)
+	•	quantite (INTEGER)
+	•	prix_unitaire (REAL)
+	•	prix_total (REAL, calculé automatiquement)
+	•	date_vente (TIMESTAMP)
+	•	notes (TEXT, optionnel)
+Table mails_enregistres :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	nom_mail (TEXT, titre du mail pour l'identifier)
+	•	objet (TEXT)
+	•	contenu_html (TEXT, contenu formaté en HTML)
+	•	contenu_texte (TEXT, version texte brut)
+	•	pieces_jointes (TEXT, chemins des fichiers séparés par ";")
+	•	date_creation (TIMESTAMP)
+	•	date_modification (TIMESTAMP)
+Table historique_emails :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	mail_id (INTEGER FOREIGN KEY → mails_enregistres.id, peut être NULL si mail non enregistré)
+	•	objet (TEXT)
+	•	contenu (TEXT)
+	•	type_envoi (TEXT : "individuel", "selection", "tous", "reponse")
+	•	nombre_destinataires (INTEGER)
+	•	destinataires (TEXT, liste des emails séparés par ";")
+	•	en_reponse_a (INTEGER FOREIGN KEY → emails_recus.id, NULL si pas une réponse)
+	•	date_envoi (TIMESTAMP)
+	•	statut (TEXT : "envoyé", "échoué", "partiel")
+	•	compte_email_utilise (TEXT, adresse email utilisée pour l'envoi)
+	•	erreurs (TEXT, détails des erreurs si échec)
+Table emails_programmes :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	mail_id (INTEGER FOREIGN KEY → mails_enregistres.id)
+	•	type_envoi (TEXT : "individuel", "selection", "tous")
+	•	filtres_selection (TEXT, JSON des filtres appliqués)
+	•	date_programmation (TIMESTAMP, quand l'email doit être envoyé)
+	•	heure_programmation (TEXT format HH:MM)
+	•	date_creation (TIMESTAMP, quand la programmation a été créée)
+	•	statut (TEXT : "en_attente", "envoyé", "annulé", "échoué")
+Table emails_recus (nouvelle) :
+Objectif : Stocker les emails reçus dans la boîte de réception centralisée
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	expediteur_email (TEXT, adresse email de l'expéditeur)
+	•	expediteur_nom (TEXT, nom affiché de l'expéditeur)
+	•	client_id (INTEGER FOREIGN KEY → clients.id, NULL si expéditeur non dans la base)
+	•	objet (TEXT)
+	•	contenu_html (TEXT)
+	•	contenu_texte (TEXT)
+	•	date_reception (TIMESTAMP)
+	•	lu (BOOLEAN, FALSE par défaut)
+	•	pieces_jointes (TEXT, chemins des fichiers téléchargés séparés par ";")
+	•	compte_email_recepteur (TEXT, compte email sur lequel le mail a été reçu)
+	•	message_id (TEXT, ID unique du message IMAP)
+Table comptes_email :
+	•	id (INTEGER PRIMARY KEY AUTOINCREMENT)
+	•	adresse_email (TEXT)
+	•	mot_de_passe_app (TEXT, crypté)
+	•	nom_affichage (TEXT, nom affiché comme expéditeur)
+	•	quota_journalier (INTEGER, défaut 500)
+	•	quota_utilise_aujourd_hui (INTEGER, défaut 0)
+	•	date_dernier_reset (DATE, pour réinitialiser le quota quotidien)
+	•	actif (BOOLEAN, TRUE si le compte est utilisable)
+	•	ordre_utilisation (INTEGER, pour définir l'ordre de rotation)
+	•	serveur_smtp (TEXT, ex: "smtp.gmail.com")
+	•	port_smtp (INTEGER, défaut 587)
+	•	serveur_imap (TEXT, ex: "imap.gmail.com")
+	•	port_imap (INTEGER, défaut 993)
+	•	activer_reception (BOOLEAN, TRUE si on veut recevoir les emails sur ce compte)
+Table parametres :
+	•	cle (TEXT PRIMARY KEY)
+	•	valeur (TEXT)
+	•	type (TEXT : "texte", "nombre", "booleen")
+	•	description (TEXT)
+Paramètres stockés :
+	•	mot_de_passe_patron (hashé)
+	•	email_recuperation (email pour récupérer le mot de passe)
+	•	monnaie (défaut : "EUR", peut être "USD")
+	•	symbole_monnaie (défaut : "€", peut être "$")
+	•	nom_entreprise (optionnel)
+	•	date_creation_entreprise (pour les stats "depuis la création")
+	•	langue_interface (défaut : "fr")
+	•	theme (défaut : "clair")
+	•	derniere_verif_emails (TIMESTAMP, pour la synchronisation IMAP)
+
+5. Description détaillée des onglets
+Onglet 1 : Client (accessible en mode vendeur)
+Objectif : Créer et modifier les fiches clients
+Interface dynamique : Les champs affichés dépendent de la configuration dans les Paramètres (champs actifs)
+Formulaire de saisie avec champs (affichés uniquement si actifs) :
+Informations de base :
+	•	Nom (obligatoire, auto-MAJUSCULES)
+	•	Prénom (obligatoire, auto-Capitale première lettre)
+	•	Date de naissance (format JJ/MM/AAAA, calendrier sélectionnable) - Jamais demander l'âge directement
+	•	Âge (calculé automatiquement en temps réel à partir de la date de naissance, affiché en lecture seule)
+	•	Adresse
+	•	Ville
+	•	Code postal
+	•	Email (validation format)
+	•	Téléphone
+	•	Profession
+	•	Centres d'intérêt
+Situation familiale (si activé) :
+	•	Situation maritale (liste déroulante : Célibataire / En couple / Marié(e) / Pacsé(e) / Divorcé(e) / Veuf/Veuve)
+Section Conjoint (si situation_maritale = "En couple" / "Marié(e)" / "Pacsé(e)" ET champ actif) :
+	•	Checkbox "A un conjoint"
+	•	Si coché, affichage d'un sous-formulaire :
+	•	Nom du conjoint
+	•	Prénom du conjoint
+	•	Date de naissance du conjoint
+	•	Email du conjoint
+	•	Téléphone du conjoint
+	•	Checkbox "Créer un compte client pour le conjoint" : Si coché, crée automatiquement un compte client lié pour le conjoint avec toutes ces infos
+Section Enfants (si champ actif) :
+	•	Checkbox "A des enfants"
+	•	Si coché :
+	•	Champ "Nombre d'enfants" (numérique)
+	•	Génération automatique de X sous-formulaires (1 par enfant) :
+	•	Nom de l'enfant X
+	•	Prénom de l'enfant X
+	•	Date de naissance de l'enfant X
+	•	Email de l'enfant X (optionnel)
+	•	Téléphone de l'enfant X (optionnel)
+	•	Checkbox "Créer un compte client pour l'enfant X" : Si coché, crée automatiquement un compte client lié pour l'enfant
+Section Parents (si champ actif) :
+	•	Checkbox "A des parents"
+	•	Si coché :
+	•	Checkbox "Parents en vie"
+	•	Si coché, affichage de deux sous-formulaires :Père :
+	•	Nom du père
+	•	Prénom du père
+	•	Date de naissance du père
+	•	Email du père
+	•	Téléphone du père
+	•	Checkbox "Créer un compte client pour le père"
+	•	Mère :
+	•	Nom de la mère
+	•	Prénom de la mère
+	•	Date de naissance de la mère
+	•	Email de la mère
+	•	Téléphone de la mère
+	•	Checkbox "Créer un compte client pour la mère"
+Notes personnalisées :
+	•	Champ texte libre pour notes
+Validation des données :
+	•	Email : vérification du format (xxx@xxx.xxx)
+	•	Date : format JJ/MM/AAAA automatique
+	•	Nom : conversion automatique en MAJUSCULES
+	•	Prénom : première lettre automatiquement en majuscule
+	•	Téléphone : formatage automatique
+Indicateur de profil :
+	•	Barre de progression ou badge indiquant si le profil est "Complet" ou "Incomplet"
+	•	Complet = Tous les champs obligatoires actifs sont renseignés
+Boutons :
+	•	"Enregistrer" : Sauvegarde le client dans la base de données (et crée les comptes liés si checkboxes cochées)
+	•	"Annuler" : Réinitialise le formulaire
+	•	"Nouveau" : Vide le formulaire pour créer un nouveau client
+Gestion des relations :
+	•	Si un conjoint/enfant/parent est créé en tant que compte client, il est lié au client principal
+	•	Ces comptes liés apparaissent dans les recherches et peuvent recevoir des emails
+	•	Ils peuvent aussi être ciblés indépendamment (ex: email uniquement aux enfants de 10-20 ans)
+
+Onglet 2 : Vente (accessible en mode vendeur)
+Objectif : Enregistrer les achats des clients
+Interface :
+Section 1 : Sélection du client
+	•	Barre de recherche avec autocomplétion (recherche par nom, prénom, email, téléphone)
+	•	Affichage : Nom PRENOM - Email - Téléphone (avec mise en gras des termes recherchés)
+Section 2 : Sélection du produit
+	•	Liste déroulante des catégories de produits
+	•	Si la catégorie n'existe pas : Bouton "+ Créer une nouvelle catégorie" (popup rapide pour créer la catégorie)
+	•	Liste déroulante des produits (filtrés par catégorie)
+	•	Affichage : Nom du produit - Prix - Attributs principaux
+	•	Si le produit n'existe pas : Bouton "+ Créer un nouveau produit" (ouvre un formulaire rapide) :
+	•	Nom du produit
+	•	Prix
+	•	Saisie rapide des attributs de la catégorie
+	•	Bouton "Créer et sélectionner"
+	•	Si un attribut/détail manque pour le produit sélectionné :
+	•	Affichage d'un avertissement : "Certains attributs ne sont pas renseignés"
+	•	Bouton "Compléter les détails" : Ouvre un mini-formulaire pour remplir les attributs manquants
+	•	Possibilité de continuer sans compléter (enregistrement partiel)
+Section 3 : Détails de la vente
+	•	Quantité (saisie numérique, défaut = 1)
+	•	Prix unitaire (pré-rempli, modifiable)
+	•	Prix total (calculé automatiquement : quantité × prix unitaire)
+	•	Date de vente (par défaut = aujourd'hui, modifiable via calendrier)
+	•	Notes (champ texte libre, optionnel)
+Boutons :
+	•	"Enregistrer la vente"
+	•	"Annuler"
+	•	"+ Ajouter un autre produit" (pour vente multiple au même client, sans revalider)
+Historique des ventes du client sélectionné :
+	•	Tableau affichant les 5 dernières ventes du client (produit, date, montant)
+
+Onglet 3 : Recherche (accessible en mode vendeur)
+Objectif : Rechercher et consulter les profils clients
+Interface :
+Barre de recherche (en haut) :
+	•	Recherche intelligente dans : nom, prénom, email, téléphone
+	•	Autocomplétion en temps réel
+	•	Chaque mot est traité indépendamment
+	•	Liste déroulante avec résultats : NOM Prénom - Email - Téléphone
+	•	Mise en gras des termes correspondants
+Profil client (après sélection) :
+Section informations personnelles :
+	•	Affichage de tous les champs actifs renseignés pour ce client
+	•	Nom, Prénom, Âge (calculé), Date de naissance
+	•	Adresse, Ville, Code postal
+	•	Email, Téléphone
+	•	Situation maritale
+	•	Si a un conjoint : Affichage des infos du conjoint avec lien vers son profil
+	•	Si a des enfants : Liste des enfants avec prénoms, âges, et liens vers leurs profils (si comptes créés)
+	•	Si a des parents : Affichage des infos des parents avec liens vers leurs profils
+Section statistiques d'achat :
+	•	Nombre total d'achats
+	•	Montant total dépensé
+	•	Produit le plus acheté
+	•	Catégorie de produits préférée
+	•	Pays d'origine le plus acheté (si attribut actif)
+	•	Marque la plus achetée (si attribut actif)
+	•	Date du dernier achat
+	•	Date d'ajout dans la base (client depuis le X/XX/XXXX)
+Section graphiques :
+	•	Graphique 1 : Évolution des achats dans le temps (courbe)
+	•	Graphique 2 : Répartition par catégorie de produits (camembert)
+	•	Graphique 3 : Dépenses mensuelles (histogramme)
+	•	Graphique 4 : Répartition par pays d'origine (si attribut actif)
+	•	Graphique 5 : Répartition par marque (si attribut actif)
+Filtres de période pour les graphiques :
+	•	Sélecteur : "1 jour", "1 semaine", "1 mois", "1 année", "Depuis l'ajout du client", "Depuis la création de l'entreprise"
+	•	Calendrier pour sélectionner une date/période précise
+Boutons :
+	•	"Modifier le profil" (ouvre l'onglet Client en mode édition)
+	•	"Voir l'historique d'achat complet" (ouvre un tableau détaillé)
+	•	"Envoyer un email à ce client" (redirige vers l'onglet Emailing avec le client pré-sélectionné)
+
+Onglet 4 : Emailing (accessible uniquement en mode patron)
+Objectif : Envoyer des emails personnalisés à un ou plusieurs clients
+Interface :
+Section 1 : Sélection des destinataires (3 boutons radio) :
+	1	Radio "Un seul client" :
+	•	Affiche : Barre de recherche avec autocomplétion
+	•	Sélection du client via liste déroulante
+	2	Radio "Sélection de clients" :
+	•	Affiche : Panneau de filtres dynamiques (en fonction des champs actifs dans les paramètres) :
+	3	Filtres de base :
+	•	Genre (checkbox : Homme / Femme, si champ actif)
+	•	Âge (curseur : de X à Y ans)
+	•	Situation maritale (checkboxes multiples, si champ actif)
+	•	Ville (liste déroulante multi-sélection, si champ actif)
+	•	Date d'ajout (de date A à date B)
+	4	Filtres familiaux (si champs actifs) :
+	•	A un conjoint (checkbox)
+	•	A des enfants (checkbox)
+	•	Nombre d'enfants (curseur : de X à Y, si "A des enfants" coché)
+	•	Âge des enfants (curseur : de X à Y ans, si "A des enfants" coché)
+	•	A des parents (checkbox)
+	•	Parents en vie (checkbox, si "A des parents" coché)
+	•	Âge des parents (curseur, si "Parents en vie" coché)
+	5	Filtres d'achat :
+	•	Catégorie de produit déjà achetée (checkboxes multiples)
+	•	Produit spécifique acheté (liste déroulante multi-sélection)
+	•	Marque achetée (checkboxes multiples, si attribut actif)
+	•	Pays d'origine acheté (checkboxes multiples, si attribut actif)
+	•	Période du dernier achat (calendrier : de date A à date B)
+	•	Montant total dépensé (curseur : de X€ à Y€)
+	•	Nombre d'achats (curseur : de X à Y)
+	6	Filtres d'anniversaire (si date de naissance active) :
+	•	Anniversaire dans les X prochains jours (curseur)
+	•	Anniversaire du conjoint dans les X prochains jours (si conjoint actif)
+	•	Anniversaire d'un enfant dans les X prochains jours (si enfants actifs)
+	•	Compteur en temps réel : "X clients correspondent à vos critères"
+	•	Bouton "Aperçu de la liste" : Affiche les noms des clients sélectionnés
+	7	Radio "Tous les clients" :
+	•	N'affiche rien (envoi direct à toute la base)
+	•	Affichage du nombre total de clients
+Section 2 : Composition de l'email :
+Choix de l'email :
+	•	Bouton radio 1 : "Nouveau mail"
+	•	Bouton radio 2 : "Utiliser un mail enregistré" (liste déroulante des mails sauvegardés)
+Si "Nouveau mail" :
+	•	Champ "Objet" (texte simple)
+	•	Éditeur de texte riche (type WYSIWYG) avec barre d'outils :
+	•	Gras, Italique, Souligné
+	•	Taille de police (liste déroulante)
+	•	Police (liste déroulante avec polices courantes)
+	•	Alignement : gauche, centre, droite, justifié
+	•	Couleur du texte
+	•	Listes à puces / numérotées
+	•	Insérer un lien hypertexte
+	•	Insérer une image (bouton → upload fichier → intégration en base64)
+	•	Insérer une variable :
+	•	Dès que l'utilisateur tape #, afficher une liste déroulante avec les variables disponibles en fonction du filtre de sélection
+Variables dynamiques :
+Variables de base (toujours disponibles) :
+	•	#NOM
+	•	#PRENOM
+	•	#AGE (si date de naissance active)
+	•	#DATENAISSANCE (si active)
+	•	#VILLE (si active)
+	•	#EMAIL
+	•	#TELEPHONE (si actif)
+Variables conditionnelles (affichées uniquement si le filtre correspondant est appliqué OU si "Un seul client" sélectionné) :
+Si filtre "A un conjoint" :
+	•	#NOMCONJOINT
+	•	#PRENOMCONJOINT
+	•	#AGECONJOINT
+	•	#DATENAISSANCECONJOINT
+	•	#EMAILCONJOINT
+	•	#TELEPHONECONJOINT
+Si filtre "A des enfants" :
+	•	#NOMBREENFANTS
+	•	#NOMENFANT1, #PRENOMENFANT1, #AGEENFANT1, #DATENAISSANCEENFANT1
+	•	#NOMENFANT2, #PRENOMENFANT2, #AGEENFANT2, #DATENAISSANCEENFANT2
+	•	(etc., jusqu'au nombre max d'enfants dans la base)
+Si filtre "A des parents" et "Parents en vie" :
+	•	#NOMPERE, #PRENOMPERE, #AGEPERE, #DATENAISSANCEPERE
+	•	#NOMMERE, #PRENOMMERE, #AGEMERE, #DATENAISSANCEMERE
+Si filtre sur catégorie/produit/marque/pays :
+	•	#PRODUITPREFERE (produit le plus acheté)
+	•	#CATEGORIEPREFERE
+	•	#MARQUEPREFERE (si attribut actif)
+	•	#PAYSPREFERE (si attribut actif)
+	•	#DERNIERACHAT (date)
+	•	#MONTANTTOTAL (montant total dépensé)
+	•	#NOMBREACHATS
+Panneau latéral "Variables disponibles" :
+	•	Liste claire de toutes les variables utilisables dans ce contexte
+	•	Clic sur une variable → insertion dans l'éditeur
+Pièces jointes :
+	•	Bouton "+ Ajouter une pièce jointe"
+	•	Liste des pièces jointes avec icône et nom de fichier
+	•	Bouton "Supprimer" pour chaque pièce jointe
+Si "Utiliser un mail enregistré" :
+	•	Affichage en lecture seule du contenu
+	•	Bouton "Modifier ce mail" (ouvre l'éditeur)
+Section 3 : Options d'envoi :
+Envoi immédiat (bouton radio, défaut) :
+	•	Bouton "Envoyer maintenant"
+Programmer l'envoi (bouton radio) :
+	•	Sélecteur de date (calendrier)
+	•	Sélecteur d'heure (HH:MM, format 24h)
+	•	Bouton "Programmer l'envoi"
+Section 4 : Sauvegarde du mail :
+	•	Checkbox "Enregistrer ce mail dans mes mails sauvegardés"
+	•	Si coché : Champ "Nom du mail" (pour l'identifier plus tard)
+Gestion des comptes email multiples (transparent pour l'utilisateur) :
+	•	Le système utilise automatiquement les comptes email configurés en rotation
+	•	Si un compte atteint 500 envois/jour → passage automatique au suivant
+	•	Indication subtile en bas : "Envoi via : fleuriste1@gmail.com (450/500 restants)"
+Aperçu avant envoi :
+	•	Bouton "Aperçu" : Affiche un exemple d'email avec les variables remplacées par les données d'un client type
+
+Onglet 5 : Boîte de réception (accessible uniquement en mode patron) - NOUVEAU
+Objectif : Centraliser tous les emails reçus sur les comptes configurés et permettre de répondre facilement
+Interface :
+Section 1 : Liste des emails reçus
+	•	Tableau des emails avec colonnes :
+	•	Statut (lu / non lu, icône)
+	•	Expéditeur (nom + email)
+	•	Client lié (si l'email correspond à un client dans la base, affichage du nom avec lien vers le profil)
+	•	Objet
+	•	Date de réception
+	•	Compte récepteur (quel compte email a reçu le message)
+	•	Pièces jointes (icône si présent)
+Tri et filtres :
+	•	Tri par date (plus récent / plus ancien)
+	•	Filtre par statut (tous / non lus / lus)
+	•	Filtre par compte récepteur
+	•	Filtre par client (si lié)
+	•	Recherche par expéditeur, objet, contenu
+Section 2 : Vue détaillée de l'email (panneau droit ou en bas)
+Clic sur un email dans la liste affiche :
+	•	En-tête :
+	•	De : Nom de l'expéditeur <email>
+	•	À : Compte récepteur
+	•	Objet : XXX
+	•	Date : JJ/MM/AAAA HH:MM
+	•	Si l'expéditeur correspond à un client : Badge "Client : [Nom Prénom]" cliquable (lien vers le profil)
+	•	Contenu :
+	•	Affichage HTML du contenu de l'email
+	•	Si pièces jointes : Liste des fichiers avec bouton "Télécharger"
+	•	Boutons d'action :
+	•	"Répondre" :
+	•	Redirige vers l'onglet Emailing
+	•	Pré-remplit automatiquement :
+	•	Destinataire : L'expéditeur de l'email
+	•	Si l'expéditeur est un client dans la base → Sélection automatique du client (mode "Un seul client")
+	•	Objet : "Re: [Objet original]"
+	•	Contenu : Citation de l'email original en bas
+	•	Enregistre dans l'historique comme "réponse à l'email X"
+	•	"Transférer" :
+	•	Redirige vers l'onglet Emailing
+	•	Pré-remplit le contenu avec l'email original
+	•	Laisse le destinataire vide
+	•	"Marquer comme non lu" / "Marquer comme lu"
+	•	"Supprimer" (avec confirmation)
+	•	"Créer un client à partir de cet email" (si l'expéditeur n'est pas dans la base) :
+	•	Redirige vers l'onglet Client
+	•	Pré-remplit Email et Nom (extrait de l'email si possible)
+Section 3 : Synchronisation
+	•	Bouton "Synchroniser" : Lance une vérification manuelle des nouveaux emails
+	•	Indicateur de dernière synchronisation : "Dernière mise à jour : il y a X minutes"
+	•	Synchronisation automatique : Toutes les 5 minutes (si l'app est ouverte)
+Notifications :
+	•	Badge de notification sur l'icône de l'onglet "Boîte de réception" avec le nombre de nouveaux emails non lus
+
+Onglet 6 : Statistiques (accessible uniquement en mode patron)
+Objectif : Analyser les performances de vente de l'entreprise
+Interface :
+Section 1 : Filtres de période :
+	•	Boutons rapides : "Aujourd'hui", "Cette semaine", "Ce mois", "Cette année", "Depuis la création de l'entreprise"
+	•	Calendrier personnalisé : sélection de date de début et date de fin
+Section 2 : KPIs (indicateurs clés) :Affichage en grands chiffres avec icônes :
+	•	Nombre total de ventes
+	•	Chiffre d'affaires total (en monnaie configurée avec symbole)
+	•	Panier moyen (CA total / nombre de ventes)
+	•	Nombre de nouveaux clients (ajoutés pendant la période)
+	•	Nombre total de clients dans la base
+Section 3 : Graphiques interactifs (Plotly) :
+	1	Graphique 1 : Évolution du CA dans le temps
+	•	Type : Courbe
+	•	Axe X : Temps (jour/semaine/mois selon période)
+	•	Axe Y : Chiffre d'affaires
+	•	Interactif : hover pour voir détails, zoom, sélection
+	2	Graphique 2 : Ventes par catégorie de produits
+	•	Type : Camembert ou histogramme
+	•	Affiche le nombre de ventes et le CA par catégorie
+	3	Graphique 3 : Top 10 des produits les plus vendus
+	•	Type : Histogramme horizontal
+	•	Produit + quantité vendue
+	4	Graphique 4 : Top 10 des meilleurs clients
+	•	Type : Histogramme horizontal
+	•	Nom du client + montant total dépensé
+	5	Graphique 5 : Répartition des ventes par jour de la semaine
+	•	Type : Histogramme
+	•	Pour identifier les jours les plus rentables
+	6	Graphique 6 : Évolution du nombre de clients
+	•	Type : Courbe
+	•	Nombre de clients dans la base au fil du temps (basé sur date_ajout)
+	7	Graphique 7 : Répartition par marque (si attribut actif)
+	•	Type : Camembert
+	•	Top marques vendues
+	8	Graphique 8 : Répartition par pays d'origine (si attribut actif)
+	•	Type : Carte interactive ou camembert
+	•	Top pays vendus
+	9	Graphique 9 : Anniversaires à venir (si date de naissance active)
+	•	Type : Liste ou calendrier
+	•	Clients ayant un anniversaire dans les 30 prochains jours
+Boutons :
+	•	"Exporter les statistiques" (PDF ou CSV)
+	•	"Actualiser" (recalcul des stats)
+
+Onglet 7 : Mails enregistrés (accessible uniquement en mode patron)
+Objectif : Gérer la bibliothèque de mails types réutilisables
+Interface :
+Liste des mails enregistrés :
+	•	Affichage en grille ou liste avec :
+	•	Nom du mail
+	•	Objet
+	•	Date de création
+	•	Date de dernière modification
+	•	Aperçu du contenu (première ligne)
+	•	Tags/catégories (optionnel, ex: "Promotion", "Anniversaire", "Saint-Valentin")
+Actions sur chaque mail :
+	•	"Modifier" (ouvre l'éditeur)
+	•	"Dupliquer" (crée une copie)
+	•	"Supprimer" (avec confirmation)
+	•	"Envoyer" (redirige vers l'onglet Emailing avec le mail pré-chargé)
+	•	"Exporter" (sauvegarde en PDF, ODT, DOCX)
+Boutons :
+	•	"+ Créer un nouveau mail" (ouvre l'éditeur)
+	•	"Importer un mail" (depuis PDF, ODT, DOCX)
+Fonction d'export/import :
+	•	Export : Conversion du HTML en format choisi (PDF, ODT, DOCX)
+	•	Import : Lecture du fichier et conversion en HTML pour l'éditeur
+Recherche et tri :
+	•	Barre de recherche (par nom, objet, contenu)
+	•	Tri par date, par nom
+
+Onglet 8 : Historique (accessible uniquement en mode patron)
+Objectif : Consulter tous les emails envoyés
+Interface :
+Tableau de l'historique avec colonnes :
+	•	Date et heure d'envoi
+	•	Objet du mail
+	•	Type d'envoi (Individuel / Sélection / Tous / Réponse)
+	•	Nombre de destinataires
+	•	Statut (Envoyé / Échoué / Partiel)
+	•	Compte email utilisé
+	•	En réponse à (si type = "Réponse", lien vers l'email reçu)
+	•	Actions (Voir détails / Renvoyer)
+Filtres :
+	•	Par date (calendrier)
+	•	Par statut (liste déroulante)
+	•	Par type d'envoi
+	•	Par compte email
+	•	Recherche par objet
+Vue détaillée (clic sur une ligne) :
+	•	Contenu complet du mail (HTML)
+	•	Liste des destinataires
+	•	Statut d'envoi pour chaque destinataire (si échec partiel)
+	•	Détails des erreurs (si échec)
+	•	Variables utilisées et leurs valeurs pour chaque destinataire
+Boutons :
+	•	"Exporter l'historique" (CSV ou PDF)
+	•	"Renvoyer ce mail" (redirige vers l'onglet Emailing avec le mail pré-chargé)
+
+Onglet 9 : Calendrier (accessible uniquement en mode patron)
+Objectif : Visualiser et gérer les emails programmés
+Interface :
+Vue calendrier (style Apple Calendar) :
+	•	Navigation mensuelle (flèches gauche/droite)
+	•	Affichage des jours du mois
+	•	Rectangles colorés sur les jours où des emails sont programmés, contenant :
+	•	Nom du mail
+	•	Heure de programmation (HH:MM)
+	•	Icône indiquant le type d'envoi (1 personne / groupe / tous)
+	•	Nombre de destinataires
+Interaction :
+	•	Clic sur un rectangle → Popup avec :
+	•	Détails du mail programmé
+	•	Objet
+	•	Aperçu du contenu
+	•	Destinataires (nombre ou liste de noms)
+	•	Date et heure de programmation
+	•	Boutons :
+	•	"Modifier la programmation" :
+	•	Permet de changer la date/heure
+	•	Permet d'éditer le contenu du mail
+	•	Permet de modifier les destinataires
+	•	"Supprimer la programmation" :
+	•	Confirmation : "Voulez-vous supprimer la programmation de cet email ?"
+	•	"Souhaitez-vous enregistrer le mail avant suppression ?" (Oui / Non / Annuler)
+Vue liste (alternative à la vue calendrier, bouton de toggle) :
+	•	Liste chronologique des emails programmés
+	•	Filtres par date, par type, par destinataires
+Notifications (si l'app est ouverte) :
+	•	Popup discrète quand un email programmé est envoyé
+	•	"Email '[Objet]' envoyé avec succès à X destinataires"
+	•	Si échec : "Erreur lors de l'envoi de '[Objet]'" avec détails
+Service d'envoi automatisé :
+	•	Daemon/Service en arrière-plan qui tourne 24h/24 (même si l'app est fermée)
+	•	Vérifie toutes les minutes si un email doit être envoyé
+	•	Envoie les emails programmés à l'heure exacte
+	•	Met à jour le statut dans la base de données
+	•	Enregistre dans l'historique
+
+Onglet 10 : Produits (accessible uniquement en mode patron)
+Objectif : Gérer le catalogue de produits et les catégories
+Interface :
+Section 1 : Catégories de produits
+Liste des catégories :
+	•	Nom de la catégorie
+	•	Nombre de produits dans cette catégorie
+	•	Boutons : "Modifier" / "Supprimer"
+Bouton "+ Créer une catégorie" :
+	•	Popup : Nom de la catégorie
+	•	Définition des attributs de la catégorie :
+	•	Attributs par défaut pré-cochés : "Marque", "Pays d'origine"
+	•	Possibilité de décocher ou modifier ces attributs par défaut
+	•	Bouton "+ Ajouter un attribut personnalisé"
+	•	Champs : Nom de l'attribut (ex: "Couleur") + Type (Texte / Nombre / Liste)
+	•	Si Type = "Liste" : Possibilité de définir les valeurs de la liste (ex: Rouge, Bleu, Vert)
+	•	Exemple : Pour une friperie → Couleur (Liste), Matière (Liste), Taille (Liste)
+Section 2 : Produits
+Affichage en tableau (style explorateur Windows) :
+Colonnes dynamiques :
+	•	Nom du produit (colonne fixe, toujours affichée)
+	•	Catégorie
+	•	Prix
+	•	Une colonne par attribut de la catégorie (Marque, Pays d'origine, Couleur, Matière, etc.)
+	•	Date de création
+En-têtes de colonnes avec flèches de tri :
+	•	Flèche vers le haut ↑ : Tri croissant (A→Z, 0→9)
+	•	Flèche vers le bas ↓ : Tri décroissant (Z→A, 9→0)
+	•	Flèche vers la droite → : Pas de tri sur cette colonne (par défaut)
+	•	Tri par défaut : Nom du produit (ordre alphabétique A→Z)
+	•	Clic sur un en-tête : Change l'état de la flèche (→ ↓ ↑ →)
+	•	Un seul tri actif à la fois (clic sur une autre colonne désactive le tri précédent)
+Filtres :
+	•	Barre de recherche (recherche dans nom, marque, attributs)
+	•	Filtre par catégorie (liste déroulante)
+	•	Filtre par fourchette de prix (curseur)
+Actions sur chaque produit (clic droit ou boutons) :
+	•	"Modifier" (ouvre le formulaire d'édition)
+	•	"Dupliquer" (crée une copie)
+	•	"Supprimer" (avec confirmation)
+Bouton "+ Créer un produit" :
+	•	Formulaire :
+	•	Catégorie (liste déroulante)
+	•	Nom du produit
+	•	Prix (en monnaie configurée)
+	•	Description (optionnel)
+	•	Valeurs des attributs (selon la catégorie choisie, champs générés dynamiquement)
+	•	Exemple si catégorie = "Vêtements" avec attributs (Marque, Pays d'origine, Couleur, Matière, Taille) :
+	•	Champ "Marque" (texte)
+	•	Champ "Pays d'origine" (texte)
+	•	Champ "Couleur" (liste déroulante si défini comme liste)
+	•	Champ "Matière" (liste déroulante)
+	•	Champ "Taille" (liste déroulante)
+Bouton "Exporter le catalogue" : Export CSV ou PDF de tous les produits
+
+Onglet 11 : Paramètres (accessible uniquement en mode patron)
+Objectif : Configurer l'application
+Interface :
+Section 1 : Informations de l'entreprise
+	•	Nom de l'entreprise
+	•	Date de création de l'entreprise (pour stats "depuis la création de l'entreprise")
+	•	Adresse, ville, téléphone (optionnel)
+Section 2 : Configuration des champs clients - NOUVELLE SECTION MAJEURE
+Objectif : Permettre au commerçant de choisir quelles informations il souhaite collecter sur ses clients
+Interface :
+Liste des champs disponibles (avec système de dépendances) :
+Affichage en arborescence :
+	•	☑ Nom (obligatoire, non décochable, toujours actif)
+	•	☑ Prénom (obligatoire, non décochable, toujours actif)
+	•	☐ Date de naissance (recommandé)
+	•	☐ Adresse
+	•	☐ Ville
+	•	☐ Code postal
+	•	☐ Email (recommandé)
+	•	☐ Téléphone (recommandé)
+	•	☐ Profession
+	•	☐ Centres d'intérêt
+	•	☐ Situation maritale
+	•	☐ A un conjoint (dépend de situation maritale)
+	•	☐ Nom du conjoint
+	•	☐ Prénom du conjoint
+	•	☐ Date de naissance du conjoint
+	•	☐ Email du conjoint
+	•	☐ Téléphone du conjoint
+	•	☐ A des enfants
+	•	☐ Nombre d'enfants (dépend de "A des enfants")
+	•	☐ Nom des enfants (dépend de "Nombre d'enfants")
+	•	☐ Prénom des enfants
+	•	☐ Date de naissance des enfants
+	•	☐ Email des enfants
+	•	☐ Téléphone des enfants
+	•	☐ A des parents
+	•	☐ Parents en vie (dépend de "A des parents")
+	•	☐ Nom du père
+	•	☐ Prénom du père
+	•	☐ Date de naissance du père
+	•	☐ Email du père
+	•	☐ Téléphone du père
+	•	☐ Nom de la mère
+	•	☐ Prénom de la mère
+	•	☐ Date de naissance de la mère
+	•	☐ Email de la mère
+	•	☐ Téléphone de la mère
+	•	☐ Notes personnalisées
+Fonctionnement :
+	•	Checkbox à cocher/décocher pour chaque champ
+	•	Si un champ parent est décoché, ses enfants sont automatiquement masqués et décochés
+	•	Bouton "Tout cocher" / "Tout décocher"
+	•	Bouton "Configuration recommandée pour :" avec presets :
+	•	Fleuriste (conjoint, parents, dates de naissance pour anniversaires)
+	•	Friperie (basique : nom, prénom, email, téléphone)
+	•	Restaurant (basique + centres d'intérêt, allergies)
+	•	Boutique de luxe (complet)
+	•	etc.
+Indication : Pour chaque champ, possibilité de le rendre "Obligatoire pour un profil complet" (checkbox supplémentaire)
+Impact :
+	•	Les champs cochés apparaissent dans le formulaire de création de client
+	•	Les champs décochés sont masqués
+	•	Les variables # correspondantes sont disponibles ou non dans l'éditeur d'emails
+	•	Les filtres d'emailing s'adaptent aux champs actifs
+Section 3 : Comptes email
+Liste des comptes configurés :
+	•	Adresse email
+	•	Nom d'affichage (expéditeur)
+	•	Quota journalier (défaut 500, modifiable)
+	•	Quota utilisé aujourd'hui / Total
+	•	Statut : Actif / Inactif
+	•	Ordre d'utilisation (numéro, modifiable par drag-and-drop)
+	•	Réception activée (checkbox, pour la boîte de réception)
+	•	Boutons : "Modifier" / "Supprimer" / "Tester la connexion"
+Bouton "+ Ajouter un compte email" :
+	•	Formulaire :
+	•	Adresse email
+	•	Mot de passe d'application (lien vers la doc Google pour générer un mot de passe d'app)
+	•	Nom d'affichage (ex: "Fleuriste George")
+	•	Quota journalier (défaut 500)
+	•	Serveur SMTP (défaut : smtp.gmail.com)
+	•	Port SMTP (défaut : 587)
+	•	Serveur IMAP (défaut : imap.gmail.com, pour réception)
+	•	Port IMAP (défaut : 993)
+	•	Activer la réception d'emails sur ce compte (checkbox)
+Section 4 : Email de récupération
+	•	Email principal pour recevoir le mot de passe patron en cas d'oubli
+Section 5 : Mot de passe patron
+	•	Bouton "Modifier le mot de passe"
+	•	Popup : Ancien mot de passe + Nouveau mot de passe + Confirmation
+Section 6 : Monnaie
+	•	Liste déroulante : EUR (€) / USD ($) / GBP (£) / Autre (personnalisable)
+	•	Champ "Symbole personnalisé" (si "Autre" sélectionné)
+Section 7 : Apparence
+	•	Thème : Clair (par défaut) / Sombre (future implémentation)
+	•	Langue : Français (défaut) / Anglais (future implémentation)
+Section 8 : Base de données
+	•	Emplacement du fichier : Affichage du chemin complet
+	•	Bouton "Sauvegarder la base de données" : Export en .db ou .sqlite
+	•	Bouton "Restaurer une sauvegarde" : Import d'un fichier .db
+	•	Bouton "Exporter toutes les données en CSV" : Export complet (clients, ventes, produits)
+Section 9 : Envoi automatisé d'emails
+	•	Statut du service : Actif / Inactif
+	•	Bouton "Démarrer le service" / "Arrêter le service"
+	•	Indication : "Le service d'envoi automatique vérifie les emails programmés toutes les minutes"
+Section 10 : À propos
+	•	Nom de l'application
+	•	Version
+	•	Développeur
+	•	Lien vers la documentation
+
+6. Fonctionnalités transversales
+Système de recherche intelligent :
+	•	Recherche en temps réel (dès la saisie)
+	•	Recherche multi-critères (chaque mot traité indépendamment)
+	•	Mise en gras des termes correspondants
+	•	Recherche insensible à la casse et aux accents
+	•	Recherche dans : nom, prénom, email, téléphone
+Formatage automatique des données :
+	•	Nom : Conversion automatique en MAJUSCULES
+	•	Prénom : Première lettre en majuscule, reste en minuscules
+	•	Email : Validation du format (regex)
+	•	Téléphone : Formatage automatique (ex: 06 12 34 56 78)
+	•	Date : Format JJ/MM/AAAA avec sélecteur calendrier
+	•	Âge : Calcul automatique en temps réel à partir de la date de naissance
+Calcul automatique de l'âge :
+	•	Âge calculé précisément à partir de la date de naissance
+	•	Recalcul dynamique (pas d'incrémentation arbitraire)
+	•	Permet des envois automatiques pour les anniversaires
+Variables personnalisables dans les emails :
+	•	Syntaxe : #NOM, #PRENOM, #AGE, etc.
+	•	Autocomplétion : Dès que l'utilisateur tape #, une liste déroulante apparaît avec toutes les variables disponibles dans le contexte actuel
+	•	Variables dynamiques : Changent en fonction des filtres de sélection appliqués
+	•	Panneau latéral : Liste claire des variables utilisables
+	•	Remplacement automatique : Lors de l'envoi, chaque variable est remplacée par la valeur du client
+Variables disponibles (contextuelles) :
+Variables de base :
+	•	#NOM, #PRENOM, #AGE, #DATENAISSANCE, #VILLE, #EMAIL, #TELEPHONE, #PROFESSION, #CENTREINTERET
+Variables familiales (si champs actifs et filtrés) :
+	•	#SITUATIONMARITALE
+	•	#NOMCONJOINT, #PRENOMCONJOINT, #AGECONJOINT, #DATENAISSANCECONJOINT
+	•	#NOMBREENFANTS
+	•	#NOMENFANT1, #PRENOMENFANT1, #AGEENFANT1, #DATENAISSANCEENFANT1
+	•	(répétition pour enfant 2, 3, etc.)
+	•	#NOMPERE, #PRENOMPERE, #AGEPERE, #DATENAISSANCEPERE
+	•	#NOMMERE, #PRENOMMERE, #AGEMERE, #DATENAISSANCEMERE
+Variables d'achat :
+	•	#PRODUITPREFERE, #CATEGORIEPREFERE, #MARQUEPREFERE, #PAYSPREFERE
+	•	#DERNIERACHAT (date), #MONTANTTOTAL, #NOMBREACHATS
+	•	#PANIERMMOYEN
+Gestion multi-comptes email :
+	•	Rotation automatique : L'app utilise les comptes dans l'ordre défini
+	•	Gestion des quotas : Passage automatique au compte suivant si quota atteint
+	•	Réinitialisation quotidienne : Reset des compteurs à minuit
+	•	Transparence : Indication en bas de l'interface du compte actuellement utilisé et du quota restant
+Service d'envoi automatisé 24h/24 :
+	•	Daemon/Service système qui tourne en arrière-plan
+	•	Fonctionne même si l'application est fermée
+	•	Vérifie toutes les minutes les emails programmés
+	•	Envoie les emails à l'heure exacte programmée
+	•	Met à jour la base de données automatiquement
+	•	Enregistre dans l'historique
+Implémentation technique :
+	•	macOS : Service launchd
+	•	Windows : Service Windows ou tâche planifiée
+	•	Linux : Daemon systemd
+	•	Alternative : APScheduler Python qui tourne en permanence
+Synchronisation des emails (IMAP) :
+	•	Automatique : Toutes les 5 minutes (si l'app est ouverte)
+	•	Manuelle : Bouton "Synchroniser" dans la boîte de réception
+	•	Téléchargement des pièces jointes : Stockées localement
+	•	Détection des clients : Matching automatique avec la base de données
+Notifications :
+	•	Notification discrète quand un email programmé est envoyé
+	•	Notification en cas d'échec d'envoi (avec détails)
+	•	Badge sur l'onglet "Boîte de réception" pour les nouveaux emails non lus
+	•	Pas de notifications intrusives
+Logs et débogage :
+	•	En développement : Logs détaillés dans le terminal (erreurs SMTP, requêtes SQL, etc.)
+	•	En production : Logs désactivés (pour la version finale destinée à la vente)
+Création automatique de comptes liés :
+	•	Lors de la création d'un client, possibilité de créer automatiquement des comptes pour :
+	•	Conjoint
+	•	Enfants
+	•	Parents
+	•	Ces comptes sont liés au client principal
+	•	Ils apparaissent dans les recherches
+	•	Ils peuvent recevoir des emails ciblés
+	•	Exemple : Email uniquement aux enfants de 10-20 ans pour une promotion jeux vidéo
+Ciblage avancé basé sur les achats :
+	•	Possibilité de cibler des clients en fonction de leurs habitudes d'achat
+	•	Exemple : Si un client achète souvent des produits du Maroc → Email de promotion pour nouveautés marocaines
+	•	Filtres : Marque achetée, Pays d'origine acheté, Catégorie achetée, Produit spécifique acheté
+Envoi automatique d'emails d'anniversaire :
+	•	Filtre : "Anniversaire dans les X prochains jours"
+	•	Permet d'envoyer automatiquement un email X jours avant l'anniversaire du client
+	•	Exemple fleuriste : Email à l'homme 10 jours avant l'anniversaire de sa femme pour une promotion bouquet
+
+7. Interface utilisateur (UI/UX)
+Design général :
+	•	Style : Épuré, blanc, moderne, minimaliste
+	•	Typographie : Sans-serif, lisible (ex: Roboto, Open Sans)
+	•	Couleurs : Palette neutre (blancs, gris clairs) avec une couleur d'accent à définir plus tard
+	•	Espacement : Généreux pour une meilleure lisibilité
+Navigation :
+	•	Menu latéral gauche (ou onglets en haut) avec icônes + texte :
+	1	Client
+	2	Vente
+	3	Recherche
+	4	Emailing (verrouillé si mode vendeur)
+	5	Boîte de réception (verrouillé si mode vendeur) - NOUVEAU
+	6	Statistiques (verrouillé si mode vendeur)
+	7	Mails enregistrés (verrouillé si mode vendeur)
+	8	Historique (verrouillé si mode vendeur)
+	9	Calendrier (verrouillé si mode vendeur)
+	10	Produits (verrouillé si mode vendeur)
+	11	Paramètres (verrouillé si mode vendeur)
+	•	Icône cadenas : Toujours visible (en haut à droite par exemple)
+Responsive :
+	•	Largeur minimale : 1024px (application desktop, pas mobile)
+	•	Adaptation des colonnes et graphiques selon la taille de la fenêtre
+Feedback utilisateur :
+	•	Messages de confirmation (vert) : "Client enregistré avec succès"
+	•	Messages d'erreur (rouge) : "Email invalide, veuillez corriger"
+	•	Spinners de chargement pour les actions longues (envoi d'emails, export de stats)
+	•	Progress bar pour les envois d'emails en masse
+Badges et indicateurs :
+	•	Badge de notification sur "Boîte de réception" pour nouveaux emails non lus
+	•	Indicateur "Profil complet" / "Profil incomplet" sur les fiches clients
+
+8. Sécurité et confidentialité
+Mot de passe patron :
+	•	Stockage : Hashé avec bcrypt ou argon2
+	•	Récupération : Envoi par email sur l'adresse principale configurée
+	•	Longueur minimale : 8 caractères (recommandé)
+Mots de passe des comptes email :
+	•	Stockage : Cryptés dans la base de données (AES ou Fernet)
+	•	Utilisation : Mots de passe d'application Google (plus sécurisé que le mot de passe principal)
+Base de données :
+	•	Emplacement : Dans le dossier de l'application ou dossier utilisateur (configurable)
+	•	Sauvegarde : Recommandation de sauvegardes régulières (manuelle ou automatisée future)
+Données sensibles :
+	•	Pas de stockage de données bancaires
+	•	Emails et téléphones traités comme sensibles (pas de partage externe)
+
+9. Roadmap de développement
+Phase 1 : Structure et base de données
+	1	Création de l'environnement virtuel (venv)
+	2	Installation des dépendances (PySide6, SQLite, Plotly, APScheduler, etc.)
+	3	Création de la structure de dossiers (MVVM : models, views, viewmodels, utils)
+	4	Création du schéma de base de données SQLite complet (avec toutes les nouvelles tables)
+	5	Fonctions CRUD de base pour chaque table
+Phase 2 : Interface de base
+	1	Fenêtre principale avec menu latéral (11 onglets)
+	2	Système de navigation entre onglets
+	3	Implémentation du système de verrouillage (cadenas)
+	4	UI blanche et épurée de base
+Phase 3 : Onglet Paramètres - Configuration des champs clients
+	1	Interface de configuration des champs clients (arborescence avec dépendances)
+	2	Système de presets (Fleuriste, Friperie, etc.)
+	3	Sauvegarde des configurations dans la table champs_clients_actifs
+Phase 4 : Onglets essentiels (mode vendeur)
+	1	Onglet "Client" : Formulaire dynamique basé sur les champs actifs
+	2	Onglet "Vente" : Enregistrement des ventes avec création rapide de produit/catégorie
+	3	Onglet "Recherche" : Recherche et affichage des profils
+Phase 5 : Onglet Produits
+	1	Gestion des catégories avec attributs par défaut (Marque, Pays d'origine)
+	2	Gestion des produits avec formulaire dynamique
+	3	Affichage en tableau avec tri par colonnes (flèches ↑↓→)
+	4	Intégration avec l'onglet Vente
+Phase 6 : Statistiques et graphiques
+	1	Calculs des KPIs (avec dates d'ajout, dates de vente)
+	2	Intégration de Plotly
+	3	Graphiques interactifs avec filtres de période
+	4	Graphiques spécifiques (marque, pays d'origine, anniversaires)
+Phase 7 : Système d'emailing - Base
+	1	Configuration des comptes email SMTP
+	2	Éditeur de texte riche avec insertion d'images
+	3	Système de variables personnalisables (#NOM, etc.)
+	4	Génération dynamique des variables selon le contexte
+	5	Envoi simple (un client)
+Phase 8 : Système d'emailing - Avancé
+	1	Filtres de sélection dynamiques (basés sur champs actifs)
+	2	Filtres d'achat avancés (marque, pays d'origine)
+	3	Filtres d'anniversaire (client, conjoint, enfants)
+	4	Envoi avec sélection (filtres)
+	5	Envoi à tous
+	6	Gestion multi-comptes et rotation
+Phase 9 : Boîte de réception (IMAP)
+	1	Configuration IMAP des comptes email
+	2	Synchronisation des emails reçus
+	3	Affichage de la liste des emails
+	4	Vue détaillée avec contenu HTML
+	5	Téléchargement des pièces jointes
+	6	Détection automatique des clients
+	7	Bouton "Répondre" avec pré-remplissage
+Phase 10 : Mails enregistrés et historique
+	1	Sauvegarde et gestion des mails
+	2	Export/Import (PDF, ODT, DOCX)
+	3	Historique des envois avec type "Réponse"
+Phase 11 : Calendrier et programmation
+	1	Vue calendrier (style Apple)
+	2	Programmation d'envois (date + heure)
+	3	Modification/Suppression avec sauvegarde optionnelle
+	4	Service d'envoi automatisé 24h/24 :
+	•	Implémentation du daemon/service
+	•	Vérification toutes les minutes
+	•	Envoi automatique des emails programmés
+	•	Mise à jour de la base de données
+	5	Notifications
+Phase 12 : Paramètres et finitions
+	1	Onglet Paramètres complet (toutes sections)
+	2	Sauvegarde/Restauration de la base
+	3	Export CSV
+	4	Gestion du service d'envoi automatisé (Démarrer/Arrêter)
+Phase 13 : Tests et optimisation
+	1	Tests sur macOS et Windows
+	2	Tests des relations clients (conjoint, enfants, parents)
+	3	Tests de la création automatique de comptes liés
+	4	Tests du service d'envoi automatisé
+	5	Tests de la boîte de réception IMAP
+	6	Tests des filtres avancés et variables dynamiques
+	7	Correction des bugs
+	8	Optimisation des performances
+Phase 14 : Documentation et déploiement (future phase)
+	1	Documentation utilisateur complète
+	2	Tutoriels vidéo
+	3	Script d'installation multi-OS
+	4	Packaging de l'application (exécutable)
+
+10. Dépendances Python (requirements.txt)
+
+text
+PySide6>=6.6.0
+plotly>=5.18.0
+kaleido>=0.2.1
+pandas>=2.1.0
+bcrypt>=4.1.0
+cryptography>=41.0.0
+python-docx>=1.1.0
+odfpy>=1.4.1
+reportlab>=4.0.0
+APScheduler>=3.10.0
+
+11. Structure des dossiers du projet
+
+text
+app/
+├── main.py                    # Point d'entrée de l'application
+├── requirements.txt           # Dépendances Python
+├── README.md                  # Documentation
+├── .gitignore
+├── models/                    # Modèles (logique métier et BDD)
+│   ├── __init__.py
+│   ├── database.py            # Connexion et schéma SQLite
+│   ├── client.py              # Modèle Client
+│   ├── vente.py               # Modèle Vente
+│   ├── produit.py             # Modèle Produit
+│   ├── email_model.py         # Modèle Email
+│   ├── email_recu.py          # Modèle Email reçu (IMAP) - NOUVEAU
+│   ├── parametres.py          # Modèle Paramètres
+│   └── champs_clients.py      # Modèle Configuration champs clients - NOUVEAU
+├── views/                     # Vues (interface graphique PySide6)
+│   ├── __init__.py
+│   ├── main_window.py         # Fenêtre principale
+│   ├── client_view.py         # Vue onglet Client
+│   ├── vente_view.py          # Vue onglet Vente
+│   ├── recherche_view.py      # Vue onglet Recherche
+│   ├── emailing_view.py       # Vue onglet Emailing
+│   ├── boite_reception_view.py # Vue onglet Boîte de réception - NOUVEAU
+│   ├── stats_view.py          # Vue onglet Statistiques
+│   ├── mails_view.py          # Vue onglet Mails enregistrés
+│   ├── historique_view.py     # Vue onglet Historique
+│   ├── calendrier_view.py     # Vue onglet Calendrier
+│   ├── produits_view.py       # Vue onglet Produits
+│   └── parametres_view.py     # Vue onglet Paramètres
+├── viewmodels/                # ViewModels (logique de présentation)
+│   ├── __init__.py
+│   ├── client_vm.py
+│   ├── vente_vm.py
+│   ├── recherche_vm.py
+│   ├── emailing_vm.py
+│   ├── boite_reception_vm.py  # ViewModel Boîte de réception - NOUVEAU
+│   ├── stats_vm.py
+│   ├── mails_vm.py
+│   ├── historique_vm.py
+│   ├── calendrier_vm.py
+│   ├── produits_vm.py
+│   └── parametres_vm.py
+├── utils/                     # Utilitaires
+│   ├── __init__.py
+│   ├── validators.py          # Validation des données (email, date, etc.)
+│   ├── formatters.py          # Formatage automatique (nom, prénom, etc.)
+│   ├── email_sender.py        # Gestion de l'envoi SMTP
+│   ├── email_receiver.py      # Gestion de la réception IMAP - NOUVEAU
+│   ├── email_scheduler.py     # Planification des emails (APScheduler)
+│   ├── daemon_service.py      # Service d'envoi automatisé 24h/24 - NOUVEAU
+│   ├── export.py              # Export PDF, ODT, DOCX
+│   ├── auth.py                # Gestion mot de passe patron
+│   ├── variables_engine.py    # Moteur de remplacement des variables - NOUVEAU
+│   └── helpers.py             # Fonctions diverses
+├── services/                  # Services (daemon, scheduler) - NOUVEAU
+│   ├── __init__.py
+│   └── email_daemon.py        # Daemon d'envoi automatisé
+├── assets/                    # Ressources (icônes, images)
+│   ├── icons/
+│   └── images/
+└── data/                      # Données (base SQLite, logs)
+    ├── app.db                 # Base de données SQLite
+    ├── attachments/           # Pièces jointes téléchargées - NOUVEAU
+    └── logs/
+
+12. Points techniques importants
+Gestion des dates :
+	•	Format uniforme : JJ/MM/AAAA
+	•	Stockage en base : TEXT (SQLite) ou TIMESTAMP selon le cas
+	•	Calcul automatique de l'âge : Basé sur la date de naissance actuelle (pas d'incrémentation arbitraire)
+	•	Widget calendrier PySide6 (QDateEdit ou QCalendarWidget)
+Éditeur de texte riche :
+	•	Utilisation de QTextEdit avec QTextDocument (HTML)
+	•	Conversion HTML → PDF avec reportlab
+	•	Conversion HTML → DOCX avec python-docx
+	•	Conversion HTML → ODT avec odfpy
+Images dans les emails :
+	•	Upload d'image → Conversion en base64
+	•	Intégration dans le HTML : <img src="data:image/png;base64,...">
+	•	Stockage dans la base de données si mail enregistré
+Graphiques Plotly :
+	•	Génération en HTML
+	•	Intégration via QWebEngineView
+	•	Export en image (PNG) avec kaleido
+Envoi d'emails SMTP :
+	•	Configuration TLS/SSL
+	•	Port 587 (TLS) pour Gmail
+	•	Gestion des erreurs (timeout, authentification, etc.)
+	•	Retry en cas d'échec temporaire
+	•	Rotation automatique des comptes selon les quotas
+Réception d'emails IMAP :
+	•	Connexion IMAP SSL (port 993 pour Gmail)
+	•	Synchronisation automatique toutes les 5 minutes
+	•	Téléchargement des pièces jointes
+	•	Parsing du HTML et texte
+	•	Matching automatique avec la base de données clients
+Service d'envoi automatisé 24h/24 :
+	•	APScheduler : Scheduler Python qui tourne en permanence
+	•	Alternative : Daemon/Service système (launchd, systemd, Windows Service)
+	•	Vérification toutes les minutes des emails programmés
+	•	Envoi automatique à l'heure exacte
+	•	Mise à jour de la base de données
+	•	Fonctionne en arrière-plan même si l'app est fermée
+Moteur de variables dynamiques :
+	•	Détection des variables #NOM, #PRENOM, etc.
+	•	Liste des variables disponibles générée dynamiquement selon :
+	•	Les champs actifs dans les paramètres
+	•	Les filtres de sélection appliqués
+	•	Le type d'envoi (individuel / sélection / tous)
+	•	Remplacement automatique lors de l'envoi
+	•	Gestion des variables manquantes (remplacement par une chaîne vide ou valeur par défaut)
+Système de champs clients personnalisables :
+	•	Configuration flexible selon le type d'activité
+	•	Dépendances entre champs (arborescence)
+	•	Impact sur :
+	•	Le formulaire de création de client
+	•	Les filtres d'emailing
+	•	Les variables disponibles
+	•	Les statistiques
+Création automatique de comptes liés :
+	•	Lors de la création d'un client, checkbox pour créer des comptes pour :
+	•	Conjoint
+	•	Enfants (1 compte par enfant)
+	•	Parents (père et mère)
+	•	Ces comptes sont liés via FOREIGN KEY
+	•	Type de relation stocké : "principal", "conjoint", "enfant", "pere", "mere"
+	•	Permet un ciblage ultra-précis dans les emails
+Performance :
+	•	Indexation des colonnes fréquemment recherchées (nom, prénom, email)
+	•	Pagination des listes (si > 1000 résultats)
+	•	Chargement asynchrone des graphiques
+	•	Calcul des âges en temps réel (pas de stockage obsolète)
+
+13. Cas d'usage exemples
+Exemple 1 : Fleuriste pour la Saint-Valentin
+Configuration :
+	•	Champs actifs : Situation maritale, A un conjoint, Nom/Prénom/Date de naissance du conjoint
+Action :
+	1	Aller dans Emailing
+	2	Sélection : "Sélection de clients"
+	3	Filtres : Situation maritale = "En couple" OU "Marié(e)", Genre = Homme
+	4	Composition : "Offrez un magnifique bouquet à #PRENOMCONJOINT pour la Saint-Valentin !"
+	5	Programmation : 4 jours avant le 14 février, 9h00
+	6	Envoi automatique le jour J
+Exemple 2 : Boutique africaine - Promotion Maroc
+Configuration :
+	•	Champs actifs : Basiques
+	•	Attribut produit : Pays d'origine activé
+Action :
+	1	Aller dans Emailing
+	2	Sélection : "Sélection de clients"
+	3	Filtres : Pays d'origine acheté = "Maroc"
+	4	Composition : "Bonjour #PRENOM, de nouveaux produits marocains viennent d'arriver !"
+	5	Envoi immédiat
+Exemple 3 : Fleuriste - Anniversaire du client
+Configuration :
+	•	Champs actifs : Date de naissance
+Action :
+	1	Aller dans Emailing
+	2	Sélection : "Sélection de clients"
+	3	Filtres : Anniversaire dans les 1 prochains jours
+	4	Composition : "Joyeux anniversaire #PRENOM ! Profitez de -20% sur votre bouquet préféré !"
+	5	Programmation : Tous les jours à 8h00 (email automatique quotidien aux clients ayant leur anniversaire le lendemain)
+Exemple 4 : Friperie - Ciblage par couleur préférée
+Configuration :
+	•	Attribut produit : Couleur
+Action :
+	1	Aller dans Emailing
+	2	Sélection : "Sélection de clients"
+	3	Filtres : Couleur achetée = "Bleu"
+	4	Composition : "Nouvelle collection bleue disponible, #PRENOM !"
+	5	Envoi immédiat
+Exemple 5 : Réponse à un client depuis la boîte de réception
+Action :
+	1	Aller dans Boîte de réception
+	2	Clic sur l'email reçu de "jean.dupont@gmail.com"
+	3	L'app détecte automatiquement Jean Dupont dans la base
+	4	Clic sur "Répondre"
+	5	Redirection vers Emailing avec :
+	•	Client sélectionné : Jean Dupont
+	•	Variables disponibles : #NOM, #PRENOM, #DERNIERACHAT, etc.
+	6	Composition de la réponse personnalisée
+	7	Envoi
+
+14. Améliorations futures (hors scope initial)
+	•	Mode sombre
+	•	Multi-langues (EN, ES, etc.)
+	•	Synchronisation cloud (backup auto)
+	•	Application mobile companion
+	•	Statistiques avancées (prédictions, IA)
+	•	Intégration avec des CRM externes
+	•	Export de rapports automatiques (hebdo, mensuel)
+	•	Gestion des stocks (si produits physiques)
+	•	Système de fidélité / points clients
+	•	Notifications push (si email programmé envoyé, même app fermée)
+	•	Signature électronique dans les emails
+	•	Templates d'emails pré-conçus (anniversaire, fêtes, etc.)
+	•	Campagnes SMS en complément des emails
+	•	Intégration avec des plateformes de paiement
+	•	Module de facturation
+
+Voilà ! C'est le plan COMPLET, ULTRA-DÉTAILLÉ et FINAL de ton application avec TOUTES les nouvelles fonctionnalités intégrées.

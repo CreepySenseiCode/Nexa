@@ -1,0 +1,499 @@
+"""Vue pour l'onglet Produits (gestion des produits)."""
+
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
+    QLabel, QLineEdit, QPushButton, QGroupBox,
+    QDoubleSpinBox, QTextEdit, QComboBox,
+    QTableWidget, QTableWidgetItem, QHeaderView,
+    QMessageBox, QAbstractItemView, QScrollArea, QDialog,
+    QDialogButtonBox, QSpinBox, QAbstractSpinBox,
+)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont, QColor
+
+
+class ProduitsView(QWidget):
+    """Vue pour la gestion des produits (Patron)."""
+
+    def __init__(self):
+        super().__init__()
+        self._mode_edition = False
+        self._produit_id = None
+        self._construire_ui()
+        self._charger_categories()
+        self._charger_produits()
+
+    def _construire_ui(self):
+        # Conteneur scrollable
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setStyleSheet(
+            "QScrollArea { border: none; background-color: #FFFFFF; }"
+        )
+
+        conteneur = QWidget()
+        conteneur.setStyleSheet("background-color: #FFFFFF;")
+        layout_principal = QVBoxLayout(conteneur)
+        layout_principal.setSpacing(20)
+        layout_principal.setContentsMargins(30, 20, 30, 30)
+
+        # Titre
+        titre = QLabel("Gestion des produits")
+        titre.setStyleSheet(
+            "font-size: 20pt; font-weight: bold; color: #2196F3; padding: 10px 0;"
+        )
+        layout_principal.addWidget(titre)
+
+        # Formulaire de creation
+        layout_principal.addWidget(self._creer_formulaire())
+
+        # Attributs personnalises
+        layout_principal.addWidget(self._creer_section_attributs())
+
+        # Barre de boutons
+        layout_principal.addLayout(self._creer_boutons())
+
+        # Tableau des produits
+        layout_principal.addWidget(self._creer_tableau())
+
+        layout_principal.addStretch()
+
+        scroll.setWidget(conteneur)
+
+        layout_self = QVBoxLayout(self)
+        layout_self.setContentsMargins(0, 0, 0, 0)
+        layout_self.addWidget(scroll)
+
+    def _get_section_style(self) -> str:
+        return (
+            "QGroupBox {"
+            "    font-size: 14pt;"
+            "    font-weight: bold;"
+            "    color: #2196F3;"
+            "    border: 2px solid #9E9E9E;"
+            "    border-radius: 10px;"
+            "    background-color: #FAFAFA;"
+            "    padding: 20px;"
+            "    margin-top: 20px;"
+            "}"
+            "QGroupBox::title {"
+            "    subcontrol-origin: margin;"
+            "    left: 15px;"
+            "    padding: 0 8px;"
+            "    background-color: #FAFAFA;"
+            "}"
+        )
+
+    def _get_input_style(self) -> str:
+        return (
+            "QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox, QTextEdit {"
+            "    border: 2px solid #9E9E9E;"
+            "    border-radius: 6px;"
+            "    padding: 8px;"
+            "    font-size: 12pt;"
+            "    min-height: 32px;"
+            "    background-color: white;"
+            "}"
+            "QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus,"
+            "QComboBox:focus, QTextEdit:focus {"
+            "    border: 2px solid #2196F3;"
+            "}"
+        )
+
+    def _creer_formulaire(self) -> QGroupBox:
+        groupe = QGroupBox("Ajouter un nouveau produit")
+        groupe.setStyleSheet(self._get_section_style())
+
+        form = QFormLayout()
+        form.setSpacing(12)
+
+        font_corps = QFont()
+        font_corps.setPointSize(12)
+
+        self.input_nom = QLineEdit()
+        self.input_nom.setFont(font_corps)
+        self.input_nom.setPlaceholderText("Nom du produit")
+        self.input_nom.setStyleSheet(self._get_input_style())
+        form.addRow("Nom :", self.input_nom)
+
+        self.input_categorie = QComboBox()
+        self.input_categorie.setFont(font_corps)
+        self.input_categorie.setStyleSheet(self._get_input_style())
+        form.addRow("Categorie :", self.input_categorie)
+
+        self.spin_prix = QDoubleSpinBox()
+        self.spin_prix.setFont(font_corps)
+        self.spin_prix.setMinimum(0.00)
+        self.spin_prix.setMaximum(999999.99)
+        self.spin_prix.setDecimals(2)
+        self.spin_prix.setSuffix(" EUR")
+        self.spin_prix.setStyleSheet(self._get_input_style())
+        form.addRow("Prix :", self.spin_prix)
+
+        self.spin_stock = QSpinBox()
+        self.spin_stock.setFont(font_corps)
+        self.spin_stock.setMinimum(0)
+        self.spin_stock.setMaximum(999999)
+        self.spin_stock.setButtonSymbols(QAbstractSpinBox.PlusMinus)
+        self.spin_stock.setAccelerated(True)
+        self.spin_stock.setStyleSheet(self._get_spinbox_style())
+        form.addRow("Stock :", self.spin_stock)
+
+        self.input_description = QTextEdit()
+        self.input_description.setFont(font_corps)
+        self.input_description.setPlaceholderText("Description (optionnel)")
+        self.input_description.setFixedHeight(80)
+        self.input_description.setStyleSheet(self._get_input_style())
+        form.addRow("Description :", self.input_description)
+
+        groupe.setLayout(form)
+        return groupe
+
+    def _creer_boutons(self) -> QHBoxLayout:
+        layout = QHBoxLayout()
+        layout.setSpacing(10)
+
+        font_corps = QFont()
+        font_corps.setPointSize(12)
+
+        self.btn_ajouter = QPushButton("Ajouter le produit")
+        self.btn_ajouter.setFont(font_corps)
+        self.btn_ajouter.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ajouter.setStyleSheet(
+            "QPushButton { background-color: #4CAF50; color: white; "
+            "padding: 10px 24px; border-radius: 8px; border: none; "
+            "font-weight: bold; }"
+            "QPushButton:hover { background-color: #388E3C; }"
+        )
+        self.btn_ajouter.clicked.connect(self._ajouter_produit)
+
+        self.btn_annuler = QPushButton("Annuler")
+        self.btn_annuler.setFont(font_corps)
+        self.btn_annuler.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_annuler.setStyleSheet(
+            "QPushButton { background-color: #9E9E9E; color: white; "
+            "padding: 10px 24px; border-radius: 8px; border: none; "
+            "font-weight: bold; }"
+            "QPushButton:hover { background-color: #757575; }"
+        )
+        self.btn_annuler.clicked.connect(self._reinitialiser_formulaire)
+
+        layout.addWidget(self.btn_annuler)
+        layout.addStretch()
+        layout.addWidget(self.btn_ajouter)
+
+        return layout
+
+    def _creer_tableau(self) -> QGroupBox:
+        groupe = QGroupBox("Produits existants")
+        groupe.setStyleSheet(self._get_section_style())
+
+        layout = QVBoxLayout()
+
+        # Barre de recherche
+        search_layout = QHBoxLayout()
+        self.input_recherche = QLineEdit()
+        self.input_recherche.setPlaceholderText("Rechercher un produit...")
+        self.input_recherche.setStyleSheet(self._get_input_style())
+        search_layout.addWidget(self.input_recherche)
+        layout.addLayout(search_layout)
+
+        self.table_produits = QTableWidget()
+        self.table_produits.setColumnCount(7)
+        self.table_produits.setHorizontalHeaderLabels([
+            "Nom", "Categorie", "Prix", "Stock",
+            "Description", "Date ajout", "Actions",
+        ])
+
+        self.table_produits.horizontalHeader().setStretchLastSection(True)
+        self.table_produits.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
+        )
+        self.table_produits.horizontalHeader().setSectionResizeMode(
+            4, QHeaderView.ResizeMode.Stretch
+        )
+        self.table_produits.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self.table_produits.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.table_produits.setAlternatingRowColors(True)
+        self.table_produits.verticalHeader().setVisible(False)
+        self.table_produits.setStyleSheet(
+            "QTableWidget {"
+            "    alternate-background-color: #F5F5F5;"
+            "    background-color: #FFFFFF;"
+            "    border: 2px solid #9E9E9E;"
+            "    border-radius: 8px;"
+            "}"
+            "QHeaderView::section {"
+            "    background-color: #E3F2FD;"
+            "    padding: 8px;"
+            "    font-weight: bold;"
+            "    border: none;"
+            "}"
+        )
+
+        layout.addWidget(self.table_produits)
+        groupe.setLayout(layout)
+        return groupe
+
+    def _creer_section_attributs(self) -> QGroupBox:
+        """Section pour les attributs personnalises du produit."""
+        groupe = QGroupBox("Caracteristiques supplementaires")
+        groupe.setStyleSheet(self._get_section_style())
+
+        layout = QVBoxLayout()
+
+        from models.database import get_db
+        db = get_db()
+
+        attributs = db.fetchall(
+            "SELECT nom_attribut FROM attributs_produits "
+            "WHERE categorie_id IS NULL ORDER BY nom_attribut"
+        )
+
+        self.attributs_widgets = {}
+
+        for attr in attributs:
+            nom_attr = attr['nom_attribut']
+
+            row_layout = QHBoxLayout()
+
+            label = QLabel(f"{nom_attr} :")
+            label.setStyleSheet("font-weight: 600; min-width: 120px;")
+            row_layout.addWidget(label)
+
+            input_field = QLineEdit()
+            input_field.setPlaceholderText(f"Valeur pour {nom_attr}")
+            input_field.setStyleSheet(self._get_input_style())
+            row_layout.addWidget(input_field)
+
+            self.attributs_widgets[nom_attr] = input_field
+
+            layout.addLayout(row_layout)
+
+        if not attributs:
+            info_label = QLabel(
+                "Aucun attribut personnalise defini.\n"
+                "Allez dans Parametres > Attributs produits pour en ajouter."
+            )
+            info_label.setStyleSheet(
+                "color: #666; font-style: italic; padding: 20px;"
+            )
+            info_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(info_label)
+
+        groupe.setLayout(layout)
+        return groupe
+
+    def _get_spinbox_style(self) -> str:
+        return (
+            "QSpinBox, QDoubleSpinBox {"
+            "    min-height: 44px;"
+            "    font-size: 13pt;"
+            "    padding: 6px 12px;"
+            "    border: 2px solid #E0E0E0;"
+            "    border-radius: 10px;"
+            "    background: white;"
+            "}"
+            "QSpinBox:focus, QDoubleSpinBox:focus {"
+            "    border: 2px solid #2196F3;"
+            "}"
+            "QSpinBox::up-button, QSpinBox::down-button,"
+            "QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {"
+            "    width: 36px;"
+            "    border: none;"
+            "    background: #2196F3;"
+            "}"
+            "QSpinBox::up-button:hover, QSpinBox::down-button:hover,"
+            "QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {"
+            "    background: #1976D2;"
+            "}"
+            "QSpinBox::up-button, QDoubleSpinBox::up-button {"
+            "    border-top-right-radius: 8px;"
+            "}"
+            "QSpinBox::down-button, QDoubleSpinBox::down-button {"
+            "    border-bottom-right-radius: 8px;"
+            "}"
+        )
+
+    def _charger_categories(self):
+        """Charge les catégories dans le combo (par ID)."""
+        from models.categorie_produit import CategorieProduitModel
+
+        self.input_categorie.clear()
+        self.input_categorie.addItem("\u2014 Sans cat\u00e9gorie \u2014", None)
+
+        cat_model = CategorieProduitModel()
+        categories = cat_model.lister_categories(actives_uniquement=True)
+
+        for cat in categories:
+            self.input_categorie.addItem(cat['nom'], cat['id'])
+
+    def _charger_produits(self):
+        """Charge les produits dans le tableau."""
+        from models.produit import ProduitModel
+
+        produit_model = ProduitModel()
+        produits = produit_model.lister_produits()
+
+        self.table_produits.setRowCount(len(produits))
+
+        for row, produit in enumerate(produits):
+            self.table_produits.setItem(row, 0, QTableWidgetItem(produit['nom']))
+
+            categorie_nom = produit.get('categorie_nom', 'Sans cat\u00e9gorie')
+            self.table_produits.setItem(row, 1, QTableWidgetItem(categorie_nom or 'Sans cat\u00e9gorie'))
+
+            self.table_produits.setItem(row, 2, QTableWidgetItem(f"{produit.get('prix', 0):.2f} \u20ac"))
+
+            stock = produit.get('stock', 0) or 0
+            stock_item = QTableWidgetItem(str(stock))
+            if stock <= 0:
+                stock_item.setForeground(QColor("#F44336"))
+            self.table_produits.setItem(row, 3, stock_item)
+
+            self.table_produits.setItem(row, 4, QTableWidgetItem(produit.get('description', '') or ''))
+
+            date_creation = produit.get('date_creation', '')
+            self.table_produits.setItem(row, 5, QTableWidgetItem(str(date_creation)[:10] if date_creation else ''))
+
+            # Boutons actions
+            btn_layout_widget = QWidget()
+            btn_layout = QHBoxLayout(btn_layout_widget)
+            btn_layout.setContentsMargins(4, 2, 4, 2)
+            btn_layout.setSpacing(4)
+
+            btn_edit = QPushButton("Modifier")
+            btn_edit.setStyleSheet(
+                "QPushButton { background-color: #2196F3; color: white; "
+                "border: none; border-radius: 4px; padding: 4px 8px; font-size: 10pt; }"
+                "QPushButton:hover { background-color: #1976D2; }"
+            )
+            btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
+            produit_id = produit['id']
+            btn_edit.clicked.connect(
+                lambda checked=False, pid=produit_id: self._editer_produit(pid)
+            )
+            btn_layout.addWidget(btn_edit)
+
+            btn_del = QPushButton("Supprimer")
+            btn_del.setStyleSheet(
+                "QPushButton { background-color: #F44336; color: white; "
+                "border: none; border-radius: 4px; padding: 4px 8px; font-size: 10pt; }"
+                "QPushButton:hover { background-color: #D32F2F; }"
+            )
+            btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_del.clicked.connect(
+                lambda checked=False, pid=produit_id: self._supprimer_produit(pid)
+            )
+            btn_layout.addWidget(btn_del)
+
+            self.table_produits.setCellWidget(row, 6, btn_layout_widget)
+
+    def _editer_produit(self, produit_id: int):
+        """Charge un produit pour édition."""
+        from models.produit import ProduitModel
+
+        produit_model = ProduitModel()
+        produit = produit_model.obtenir_produit(produit_id)
+
+        if not produit:
+            return
+
+        self._mode_edition = True
+        self._produit_id = produit_id
+
+        self.input_nom.setText(produit['nom'])
+        self.spin_prix.setValue(produit.get('prix', 0))
+        self.spin_stock.setValue(produit.get('stock', 0) or 0)
+        self.input_description.setPlainText(produit.get('description', '') or '')
+
+        categorie_id = produit.get('categorie_id')
+        if categorie_id:
+            index = self.input_categorie.findData(categorie_id)
+            if index >= 0:
+                self.input_categorie.setCurrentIndex(index)
+        else:
+            self.input_categorie.setCurrentIndex(0)
+
+        self.btn_ajouter.setText("Modifier le produit")
+
+    def _supprimer_produit(self, produit_id: int):
+        """Supprime un produit après confirmation."""
+        rep = QMessageBox.question(
+            self, "Confirmation",
+            "Voulez-vous vraiment supprimer ce produit ?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if rep == QMessageBox.Yes:
+            from models.produit import ProduitModel
+            produit_model = ProduitModel()
+            if produit_model.supprimer_produit(produit_id):
+                self._charger_produits()
+
+    def _ajouter_produit(self):
+        """Ajoute ou modifie un produit avec categorie_id."""
+        nom = self.input_nom.text().strip()
+        if not nom:
+            QMessageBox.warning(
+                self, "Attention", "Veuillez saisir un nom de produit."
+            )
+            return
+
+        prix = self.spin_prix.value()
+        if prix <= 0:
+            QMessageBox.warning(
+                self, "Attention", "Le prix doit etre superieur a 0."
+            )
+            return
+
+        categorie_id = self.input_categorie.currentData()
+        stock = self.spin_stock.value()
+        description = self.input_description.toPlainText().strip()
+
+        from models.produit import ProduitModel
+        produit_model = ProduitModel()
+
+        if hasattr(self, '_mode_edition') and self._mode_edition and hasattr(self, '_produit_id'):
+            succes = produit_model.modifier_produit(
+                self._produit_id,
+                {
+                    'nom': nom,
+                    'categorie_id': categorie_id,
+                    'prix': prix,
+                    'stock': stock,
+                    'description': description,
+                }
+            )
+            if succes:
+                QMessageBox.information(self, "Succes", "Produit modifie avec succes !")
+                self._charger_produits()
+                self._reinitialiser_formulaire()
+        else:
+            produit_id = produit_model.creer_produit(
+                categorie_id=categorie_id,
+                nom=nom,
+                prix=prix,
+                stock=stock,
+                description=description,
+            )
+            if produit_id and produit_id > 0:
+                QMessageBox.information(
+                    self, "Succes", f"Le produit '{nom}' a ete ajoute avec succes !"
+                )
+                self._charger_produits()
+                self._reinitialiser_formulaire()
+
+    def _reinitialiser_formulaire(self):
+        self._mode_edition = False
+        self._produit_id = None
+        self.input_nom.clear()
+        self.input_categorie.setCurrentIndex(0)
+        self.spin_prix.setValue(0.00)
+        self.spin_stock.setValue(0)
+        self.input_description.clear()
+        self.btn_ajouter.setText("Ajouter le produit")

@@ -1,0 +1,106 @@
+"""ViewModel pour la gestion des ventes."""
+from PySide6.QtCore import QObject, Signal
+from models.vente import VenteModel
+from models.client import ClientModel
+from models.produit import ProduitModel
+from typing import Optional
+
+
+class VenteViewModel(QObject):
+    """ViewModel pour l'onglet Vente."""
+
+    # Signals
+    vente_enregistree = Signal(int)  # Emet l'id de la vente
+    erreur = Signal(str)
+    clients_trouves = Signal(list)  # Pour l'autocomplétion
+
+    def __init__(self):
+        super().__init__()
+        self.vente_model = VenteModel()
+        self.client_model = ClientModel()
+        self.produit_model = ProduitModel()
+
+    def rechercher_clients(self, terme: str) -> list[dict]:
+        """Recherche des clients pour l'autocomplétion.
+        Retourne une liste de dicts avec id, nom, prenom, email, telephone."""
+        if len(terme) < 1:
+            return []
+        resultats = self.client_model.rechercher_clients(terme)
+        self.clients_trouves.emit(resultats)
+        return resultats
+
+    def lister_categories(self) -> list[dict]:
+        """Retourne toutes les catégories de produits."""
+        return self.produit_model.lister_categories()
+
+    def lister_produits(self, categorie_id: int = None) -> list[dict]:
+        """Retourne les produits filtrés par catégorie."""
+        return self.produit_model.lister_produits(categorie_id)
+
+    def creer_categorie(self, nom: str) -> Optional[int]:
+        """Crée une nouvelle catégorie."""
+        if not nom.strip():
+            self.erreur.emit("Le nom de la catégorie ne peut pas être vide.")
+            return None
+        try:
+            return self.produit_model.creer_categorie(nom.strip())
+        except Exception as e:
+            self.erreur.emit(f"Erreur : {str(e)}")
+            return None
+
+    def creer_produit(self, categorie_id: int, nom: str, prix: float = 0.0) -> Optional[int]:
+        """Crée un nouveau produit."""
+        if not nom.strip():
+            self.erreur.emit("Le nom du produit ne peut pas être vide.")
+            return None
+        try:
+            return self.produit_model.creer_produit(categorie_id, nom.strip(), prix)
+        except Exception as e:
+            self.erreur.emit(f"Erreur : {str(e)}")
+            return None
+
+    def enregistrer_vente(self, client_id: int, produit_id: int, quantite: int, prix_unitaire: float, date_vente: str = None, notes: str = "") -> Optional[int]:
+        """Enregistre une vente.
+        Calcule prix_total = quantite * prix_unitaire.
+        Valide les entrées.
+        Emet vente_enregistree en cas de succès, erreur en cas d'échec.
+        """
+        if not client_id:
+            self.erreur.emit("Veuillez sélectionner un client.")
+            return None
+        if not produit_id:
+            self.erreur.emit("Veuillez sélectionner un produit.")
+            return None
+        if quantite < 1:
+            self.erreur.emit("La quantité doit être supérieure à 0.")
+            return None
+        if prix_unitaire < 0:
+            self.erreur.emit("Le prix ne peut pas être négatif.")
+            return None
+
+        prix_total = round(quantite * prix_unitaire, 2)
+
+        try:
+            vente_id = self.vente_model.creer_vente(
+                client_id=client_id,
+                produit_id=produit_id,
+                quantite=quantite,
+                prix_unitaire=prix_unitaire,
+                prix_total=prix_total,
+                date_vente=date_vente,
+                notes=notes
+            )
+            self.vente_enregistree.emit(vente_id)
+            return vente_id
+        except Exception as e:
+            self.erreur.emit(f"Erreur lors de l'enregistrement : {str(e)}")
+            return None
+
+    def obtenir_historique_client(self, client_id: int, limite: int = 5) -> list[dict]:
+        """Retourne les dernières ventes d'un client."""
+        return self.vente_model.obtenir_ventes_client(client_id, limite)
+
+    def obtenir_prix_produit(self, produit_id: int) -> float:
+        """Retourne le prix d'un produit."""
+        produit = self.produit_model.obtenir_produit(produit_id)
+        return produit['prix'] if produit else 0.0
