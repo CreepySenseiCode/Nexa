@@ -8,6 +8,8 @@ CRUD sur les tables ``centres_interet`` et ``clients_centres_interet``.
 import logging
 from typing import Optional
 
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,7 @@ class CentreInteretModel:
             return self.db.fetchall(
                 "SELECT * FROM centres_interet ORDER BY nom"
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors du listage des centres d'intérêt : %s", e
             )
@@ -73,7 +75,7 @@ class CentreInteretModel:
             )
             return nouveau_id
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la création du centre d'intérêt '%s' : %s",
                 nom,
@@ -110,7 +112,7 @@ class CentreInteretModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la suppression du centre d'intérêt %s : %s",
                 centre_id,
@@ -145,7 +147,7 @@ class CentreInteretModel:
                 """,
                 (client_id,),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération des centres du client %s : %s",
                 client_id,
@@ -184,7 +186,7 @@ class CentreInteretModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de l'association du centre %s au client %s : %s",
                 centre_interet_id,
@@ -220,7 +222,7 @@ class CentreInteretModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors du retrait du centre %s du client %s : %s",
                 centre_interet_id,
@@ -271,7 +273,7 @@ class CentreInteretModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la redéfinition des centres du client %s : %s",
                 client_id,

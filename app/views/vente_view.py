@@ -516,9 +516,7 @@ class VenteView(QWidget):
         self.spin_prix.setValue(prix)
 
         # Recuperer et afficher le stock
-        from models.produit import ProduitModel
-        produit_model = ProduitModel()
-        produit = produit_model.obtenir_produit(produit_id)
+        produit = self.viewmodel.obtenir_produit(produit_id)
 
         if produit:
             stock = produit.get('stock', 0) or 0
@@ -909,11 +907,8 @@ class VenteView(QWidget):
             return
 
         # Verifier le stock de tous les articles avant d'enregistrer
-        from models.produit import ProduitModel
-        produit_model = ProduitModel()
-
         for article in self._articles:
-            produit = produit_model.obtenir_produit(article['produit_id'])
+            produit = self.viewmodel.obtenir_produit(article['produit_id'])
             if produit:
                 stock_disponible = produit.get('stock', 0) or 0
                 if article['quantite'] > stock_disponible:

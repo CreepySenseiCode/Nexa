@@ -6,6 +6,7 @@ CRUD sur les tables ``codes_reduction`` et ``utilisations_codes``.
 """
 
 import logging
+import sqlite3
 from datetime import date
 from typing import Optional
 
@@ -81,7 +82,7 @@ class CodeReductionModel:
             )
             return nouveau_id
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la création du code '%s' : %s", code, e
             )
@@ -114,7 +115,7 @@ class CodeReductionModel:
             logger.info("Code de réduction %s modifié avec succès", code_id)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la modification du code %s : %s",
                 code_id,
@@ -142,7 +143,7 @@ class CodeReductionModel:
             logger.info("Code de réduction %s supprimé avec succès", code_id)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la suppression du code %s : %s",
                 code_id,
@@ -164,7 +165,7 @@ class CodeReductionModel:
             return self.db.fetchall(
                 "SELECT * FROM codes_reduction ORDER BY date_creation DESC"
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors du listage des codes de réduction : %s", e
             )
@@ -184,7 +185,7 @@ class CodeReductionModel:
             return self.db.fetchone(
                 "SELECT * FROM codes_reduction WHERE id = ?", (code_id,)
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération du code %s : %s",
                 code_id,
@@ -309,7 +310,7 @@ class CodeReductionModel:
 
             return (resultat, message, None)
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la vérification du code '%s' : %s", code, e
             )
@@ -338,7 +339,7 @@ class CodeReductionModel:
             logger.info("Code de réduction %s %s", code_id, etat)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de l'activation/désactivation du code %s : %s",
                 code_id,
@@ -395,7 +396,7 @@ class CodeReductionModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de l'enregistrement de l'utilisation du code %s : %s",
                 code_id,
@@ -430,7 +431,7 @@ class CodeReductionModel:
                 """,
                 (code_id,),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération des utilisations du code %s : %s",
                 code_id,

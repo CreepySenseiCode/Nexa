@@ -1,11 +1,13 @@
 """
-Modèle pour la gestion des produits et catégories.
+Modèle pour la gestion des produits.
 
 Ce module fournit la classe ProduitModel qui encapsule les opérations
-CRUD sur les tables ``produits`` et ``categories_produits``.
+CRUD sur la table ``produits``. Pour la gestion des catégories, voir
+:class:`~models.categorie_produit.CategorieProduitModel`.
 """
 
 import logging
+import sqlite3
 from typing import Optional
 
 from models.database import get_db
@@ -14,100 +16,14 @@ logger = logging.getLogger(__name__)
 
 
 class ProduitModel:
-    """Modèle pour la gestion des produits et catégories.
+    """Modèle pour la gestion des produits.
 
     Gère la création, la modification, la suppression et la consultation
-    des produits et de leurs catégories.
+    des produits.
     """
 
     def __init__(self) -> None:
         self.db = get_db()
-
-    # ==================================================================
-    # Catégories
-    # ==================================================================
-
-    def creer_categorie(self, nom: str) -> int:
-        """Crée une nouvelle catégorie de produits.
-
-        Args:
-            nom: Nom de la catégorie.
-
-        Returns:
-            L'identifiant (ID) de la catégorie créée, ou ``-1`` en cas
-            d'erreur.
-        """
-        try:
-            cursor = self.db.execute(
-                "INSERT INTO categories_produits (nom) VALUES (?)",
-                (nom,),
-            )
-            nouveau_id = cursor.lastrowid
-            logger.info("Catégorie créée : '%s' (ID %s)", nom, nouveau_id)
-            return nouveau_id
-
-        except Exception as e:
-            logger.error(
-                "Erreur lors de la création de la catégorie '%s' : %s", nom, e
-            )
-            return -1
-
-    def lister_categories(self) -> list[dict]:
-        """Retourne toutes les catégories de produits.
-
-        Returns:
-            Une liste de dictionnaires, un par catégorie.
-        """
-        try:
-            return self.db.fetchall(
-                "SELECT * FROM categories_produits ORDER BY nom"
-            )
-        except Exception as e:
-            logger.error(
-                "Erreur lors du listage des catégories : %s", e
-            )
-            return []
-
-    def supprimer_categorie(self, categorie_id: int) -> bool:
-        """Supprime une catégorie et tous ses produits associés.
-
-        Les produits rattachés à cette catégorie sont supprimés en
-        premier, puis la catégorie elle-même.
-
-        Args:
-            categorie_id: Identifiant de la catégorie à supprimer.
-
-        Returns:
-            ``True`` si la suppression a réussi, ``False`` sinon.
-        """
-        try:
-            with self.db.transaction():
-                # Supprimer d'abord les produits de la catégorie
-                self.db.execute(
-                    "DELETE FROM produits WHERE categorie_id = ?",
-                    (categorie_id,),
-                )
-                # Supprimer les attributs de la catégorie
-                self.db.execute(
-                    "DELETE FROM attributs_produits WHERE categorie_id = ?",
-                    (categorie_id,),
-                )
-                # Supprimer la catégorie
-                self.db.execute(
-                    "DELETE FROM categories_produits WHERE id = ?",
-                    (categorie_id,),
-                )
-
-            logger.info("Catégorie %s supprimée avec succès", categorie_id)
-            return True
-
-        except Exception as e:
-            logger.error(
-                "Erreur lors de la suppression de la catégorie %s : %s",
-                categorie_id,
-                e,
-            )
-            return False
 
     # ==================================================================
     # Produits
@@ -146,7 +62,7 @@ class ProduitModel:
             logger.info("Produit créé : '%s' (ID %s)", nom, nouveau_id)
             return nouveau_id
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la création du produit '%s' : %s", nom, e
             )
@@ -175,7 +91,7 @@ class ProduitModel:
             logger.info("Produit %s modifié avec succès", produit_id)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la modification du produit %s : %s",
                 produit_id,
@@ -197,7 +113,7 @@ class ProduitModel:
             return self.db.fetchone(
                 "SELECT * FROM produits WHERE id = ?", (produit_id,)
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération du produit %s : %s",
                 produit_id,
@@ -240,7 +156,7 @@ class ProduitModel:
 
             return self.db.fetchall(query, tuple(params) if params else ())
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors du listage des produits : %s", e
             )
@@ -273,7 +189,7 @@ class ProduitModel:
             logger.info("Produit %s supprimé avec succès", produit_id)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la suppression du produit %s : %s",
                 produit_id,

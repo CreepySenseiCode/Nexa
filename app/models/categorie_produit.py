@@ -1,7 +1,12 @@
 """
 Modèle Catégorie Produit.
 """
+import logging
+import sqlite3
+
 from models.database import get_db
+
+logger = logging.getLogger(__name__)
 
 
 class CategorieProduitModel:
@@ -60,8 +65,8 @@ class CategorieProduitModel:
             )
             return result['id'] if result else None
 
-        except Exception as e:
-            print(f"Erreur création catégorie : {e}")
+        except sqlite3.Error as e:
+            logger.error("Erreur création catégorie : %s", e)
             return None
 
     def modifier_categorie(self, categorie_id: int, nom: str = None,
@@ -92,8 +97,8 @@ class CategorieProduitModel:
         try:
             self.db.execute(query, tuple(params))
             return True
-        except Exception as e:
-            print(f"Erreur modification catégorie : {e}")
+        except sqlite3.Error as e:
+            logger.error("Erreur modification catégorie : %s", e)
             return False
 
     def supprimer_categorie(self, categorie_id: int, soft_delete=True):
@@ -116,8 +121,8 @@ class CategorieProduitModel:
 
             return True
 
-        except Exception as e:
-            print(f"Erreur suppression catégorie : {e}")
+        except sqlite3.Error as e:
+            logger.error("Erreur suppression catégorie : %s", e)
             return False
 
     def compter_produits(self, categorie_id: int) -> int:

@@ -10,6 +10,8 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -55,7 +57,7 @@ class ClientModel:
             logger.info("Client créé avec l'ID %s", nouveau_id)
             return nouveau_id
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de la création du client : %s", e)
             return -1
 
@@ -91,7 +93,7 @@ class ClientModel:
             logger.info("Client %s modifié avec succès", client_id)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la modification du client %s : %s",
                 client_id,
@@ -137,7 +139,7 @@ class ClientModel:
             logger.info("Client %s supprimé avec succès", client_id)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la suppression du client %s : %s",
                 client_id,
@@ -163,7 +165,7 @@ class ClientModel:
             return self.db.fetchone(
                 "SELECT * FROM clients WHERE id = ?", (client_id,)
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération du client %s : %s",
                 client_id,
@@ -181,7 +183,7 @@ class ClientModel:
             return self.db.fetchall(
                 "SELECT * FROM clients ORDER BY nom, prenom"
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du listage des clients : %s", e)
             return []
 
@@ -224,7 +226,7 @@ class ClientModel:
 
             return self.db.fetchall(query, tuple(params))
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la recherche de clients ('%s') : %s",
                 terme,
@@ -267,7 +269,7 @@ class ClientModel:
                 (liaison["conjoint_client_id"],),
             )
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération du conjoint du client %s : %s",
                 client_id,
@@ -300,7 +302,7 @@ class ClientModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la liaison conjoint (%s <-> %s) : %s",
                 client_id,
@@ -333,7 +335,7 @@ class ClientModel:
                 """,
                 (client_id,),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération des enfants du client %s : %s",
                 client_id,
@@ -367,7 +369,7 @@ class ClientModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la liaison enfant (%s -> %s) : %s",
                 client_id,
@@ -399,7 +401,7 @@ class ClientModel:
                 """,
                 (client_id,),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération des parents du client %s : %s",
                 client_id,
@@ -434,7 +436,7 @@ class ClientModel:
             )
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la liaison parent (%s -> %s) : %s",
                 client_id,
@@ -461,7 +463,7 @@ class ClientModel:
                 "SELECT * FROM champs_clients_actifs WHERE actif = 1 "
                 "ORDER BY ordre_affichage"
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération des champs actifs : %s", e
             )

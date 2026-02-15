@@ -3,6 +3,7 @@ from PySide6.QtCore import QObject, Signal
 from models.vente import VenteModel
 from models.client import ClientModel
 from models.produit import ProduitModel
+from models.categorie_produit import CategorieProduitModel
 from typing import Optional
 
 
@@ -19,6 +20,7 @@ class VenteViewModel(QObject):
         self.vente_model = VenteModel()
         self.client_model = ClientModel()
         self.produit_model = ProduitModel()
+        self.categorie_model = CategorieProduitModel()
 
     def rechercher_clients(self, terme: str) -> list[dict]:
         """Recherche des clients pour l'autocomplétion.
@@ -31,7 +33,7 @@ class VenteViewModel(QObject):
 
     def lister_categories(self) -> list[dict]:
         """Retourne toutes les catégories de produits."""
-        return self.produit_model.lister_categories()
+        return self.categorie_model.lister_categories(actives_uniquement=True)
 
     def lister_produits(self, categorie_id: int = None) -> list[dict]:
         """Retourne les produits filtrés par catégorie."""
@@ -42,11 +44,7 @@ class VenteViewModel(QObject):
         if not nom.strip():
             self.erreur.emit("Le nom de la catégorie ne peut pas être vide.")
             return None
-        try:
-            return self.produit_model.creer_categorie(nom.strip())
-        except Exception as e:
-            self.erreur.emit(f"Erreur : {str(e)}")
-            return None
+        return self.categorie_model.creer_categorie(nom.strip())
 
     def creer_produit(self, categorie_id: int, nom: str, prix: float = 0.0) -> Optional[int]:
         """Crée un nouveau produit."""
@@ -103,6 +101,10 @@ class VenteViewModel(QObject):
     def obtenir_client(self, client_id: int) -> dict:
         """Retourne les infos basiques d'un client (nom, prenom, email)."""
         return self.client_model.obtenir_client(client_id)
+
+    def obtenir_produit(self, produit_id: int) -> dict:
+        """Retourne les infos completes d'un produit."""
+        return self.produit_model.obtenir_produit(produit_id)
 
     def obtenir_prix_produit(self, produit_id: int) -> float:
         """Retourne le prix d'un produit."""

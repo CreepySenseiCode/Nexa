@@ -2,6 +2,8 @@
 
 import logging
 from typing import Optional
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ class EmailRecuModel:
                     ORDER BY date_reception DESC
                     """
                 )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du listage des emails : %s", e)
             return []
 
@@ -58,6 +60,6 @@ class HistoriqueEmailModel:
                 ORDER BY date_envoi DESC
                 """
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du listage de l'historique : %s", e)
             return []

@@ -2,6 +2,8 @@
 
 import logging
 from typing import Optional
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -20,7 +22,7 @@ class EmailModel:
                 "SELECT id, nom_mail, objet FROM mails_enregistres "
                 "ORDER BY date_modification DESC"
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du listage des mails : %s", e)
             return []
 
@@ -30,7 +32,7 @@ class EmailModel:
             return self.db.fetchone(
                 "SELECT * FROM mails_enregistres WHERE id = ?", (mail_id,)
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de la lecture du mail %s : %s", mail_id, e)
             return None
 
@@ -43,7 +45,7 @@ class EmailModel:
                 (nom, objet, contenu_html),
             )
             return cursor.lastrowid
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de la creation du mail : %s", e)
             raise
 
@@ -54,6 +56,6 @@ class EmailModel:
                 "DELETE FROM mails_enregistres WHERE id = ?", (mail_id,)
             )
             return True
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de la suppression du mail %s : %s", mail_id, e)
             raise

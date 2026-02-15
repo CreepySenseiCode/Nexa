@@ -1,6 +1,8 @@
 """Modele pour la gestion des attributs de produits."""
 
 import logging
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ class AttributProduitModel:
                 "SELECT id, nom_attribut FROM attributs_produits "
                 "WHERE categorie_id IS NULL ORDER BY nom_attribut"
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du listage des attributs : %s", e)
             return []
 
@@ -32,7 +34,7 @@ class AttributProduitModel:
                 (nom,),
             )
             return cursor.lastrowid
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de l'ajout de l'attribut '%s' : %s", nom, e)
             raise
 
@@ -56,6 +58,6 @@ class AttributProduitModel:
                     (attr['id'],),
                 )
             return True
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de la suppression de l'attribut '%s' : %s", nom, e)
             raise

@@ -8,6 +8,8 @@ de lecture et d'écriture sur la table ``parametres``.
 import logging
 from typing import Optional
 
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,7 @@ class ParametresModel:
                 return row["valeur"]
             return None
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la lecture du paramètre '%s' : %s", cle, e
             )
@@ -63,7 +65,7 @@ class ParametresModel:
             rows = self.db.fetchall("SELECT cle, valeur FROM parametres")
             return {row["cle"]: row["valeur"] for row in rows}
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération de tous les paramètres : %s", e
             )
@@ -94,7 +96,7 @@ class ParametresModel:
             logger.info("Paramètre '%s' défini à '%s'", cle, valeur)
             return True
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la définition du paramètre '%s' : %s", cle, e
             )

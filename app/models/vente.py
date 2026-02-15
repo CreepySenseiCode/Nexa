@@ -9,6 +9,8 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -86,7 +88,7 @@ class VenteModel:
             )
             return nouveau_id
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de la création de la vente : %s", e)
             return -1
 
@@ -124,7 +126,7 @@ class VenteModel:
                 """,
                 (client_id, sql_limite),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors de la récupération des ventes du client %s : %s",
                 client_id,
@@ -217,7 +219,7 @@ class VenteModel:
 
             return stats
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors du calcul des stats du client %s : %s",
                 client_id,
@@ -241,7 +243,7 @@ class VenteModel:
                 """,
                 (client_id,),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur depenses client %s : %s", client_id, e)
             return []
 
@@ -263,7 +265,7 @@ class VenteModel:
                 """,
                 (client_id,),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur repartition categories client %s : %s", client_id, e)
             return []
 
@@ -319,7 +321,7 @@ class VenteModel:
 
             return self.db.fetchall(query, tuple(params))
 
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(
                 "Erreur lors du listage des ventes : %s", e
             )

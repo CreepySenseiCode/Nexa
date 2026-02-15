@@ -1,6 +1,8 @@
 """Modele pour les statistiques de ventes."""
 
 import logging
+import sqlite3
+
 from models.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -40,7 +42,7 @@ class StatistiquesModel:
                 'clients_actifs': clients_actifs,
                 'panier_moyen': panier_moyen,
             }
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du calcul des KPIs : %s", e)
             return {'nb_ventes': 0, 'ca_total': 0, 'clients_actifs': 0, 'panier_moyen': 0}
 
@@ -61,7 +63,7 @@ class StatistiquesModel:
                 """,
                 (date_debut, date_fin, limite),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du calcul du top clients : %s", e)
             return []
 
@@ -82,7 +84,7 @@ class StatistiquesModel:
                 """,
                 (date_debut, date_fin, limite),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors du calcul du top produits : %s", e)
             return []
 
@@ -98,6 +100,6 @@ class StatistiquesModel:
                 """,
                 (date_debut, date_fin),
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error("Erreur lors de la recuperation des ventes : %s", e)
             return []
