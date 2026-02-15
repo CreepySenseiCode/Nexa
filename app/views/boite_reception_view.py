@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
 from utils.styles import style_bouton, style_scroll_area, Couleurs
+from viewmodels.boite_reception_vm import BoiteReceptionViewModel
 
 
 class BoiteReceptionView(QWidget):
@@ -18,6 +19,7 @@ class BoiteReceptionView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.viewmodel = BoiteReceptionViewModel()
         self._construire_ui()
         self._charger_emails()
 
@@ -154,34 +156,8 @@ class BoiteReceptionView(QWidget):
 
     def _charger_emails(self):
         """Charge les emails depuis la base de donn\u00e9es."""
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            adresse = self.combo_adresse.currentText()
-
-            if adresse == "Toutes les bo\u00eetes":
-                emails = db.fetchall(
-                    """
-                    SELECT id, expediteur_email, expediteur_nom, objet,
-                           date_reception, lu, pieces_jointes, compte_email_recepteur
-                    FROM emails_recus
-                    ORDER BY date_reception DESC
-                    """
-                )
-            else:
-                emails = db.fetchall(
-                    """
-                    SELECT id, expediteur_email, expediteur_nom, objet,
-                           date_reception, lu, pieces_jointes, compte_email_recepteur
-                    FROM emails_recus
-                    WHERE compte_email_recepteur = ?
-                    ORDER BY date_reception DESC
-                    """,
-                    (adresse,),
-                )
-        except Exception:
-            emails = []
+        adresse = self.combo_adresse.currentText()
+        emails = self.viewmodel.charger_emails(adresse)
 
         self.table.setRowCount(len(emails))
 

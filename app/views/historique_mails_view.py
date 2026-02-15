@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
 from utils.styles import style_bouton, style_scroll_area, Couleurs
+from viewmodels.historique_vm import HistoriqueViewModel
 
 
 class HistoriqueMailsView(QWidget):
@@ -18,6 +19,7 @@ class HistoriqueMailsView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.viewmodel = HistoriqueViewModel()
         self._construire_ui()
         self._charger_historique()
 
@@ -141,20 +143,7 @@ class HistoriqueMailsView(QWidget):
 
     def _charger_historique(self):
         """Charge l'historique des emails depuis la base de donn\u00e9es."""
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            query = """
-                SELECT id, objet, type_envoi, nombre_destinataires,
-                       destinataires, date_envoi, statut
-                FROM historique_emails
-                ORDER BY date_envoi DESC
-            """
-
-            emails = db.fetchall(query)
-        except Exception:
-            emails = []
+        emails = self.viewmodel.charger_historique()
 
         self.table.setRowCount(len(emails))
 

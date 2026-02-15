@@ -55,3 +55,11 @@ class RechercheViewModel(QObject):
     def obtenir_historique_complet(self, client_id: int) -> list[dict]:
         """Retourne l'historique d'achat complet d'un client (sans limite)."""
         return self.vente_model.obtenir_ventes_client(client_id, limite=0)
+
+    def obtenir_depenses_client(self, client_id: int) -> list[dict]:
+        """Retourne les ventes d'un client pour le graphique."""
+        return self.vente_model.obtenir_depenses_client(client_id)
+
+    def obtenir_repartition_categories(self, client_id: int) -> list[dict]:
+        """Retourne la repartition par categorie pour un client."""
+        return self.vente_model.obtenir_repartition_categories(client_id)

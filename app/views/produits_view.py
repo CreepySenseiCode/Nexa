@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QColor
 from utils.styles import style_section, style_input, style_bouton, style_spinbox, style_scroll_area, Couleurs
+from viewmodels.produits_vm import ProduitsViewModel
 
 
 class ProduitsView(QWidget):
@@ -20,6 +21,7 @@ class ProduitsView(QWidget):
         super().__init__()
         self._mode_edition = False
         self._produit_id = None
+        self.viewmodel = ProduitsViewModel()
         self._construire_ui()
         self._charger_categories()
         self._charger_produits()
@@ -200,13 +202,7 @@ class ProduitsView(QWidget):
 
         layout = QVBoxLayout()
 
-        from models.database import get_db
-        db = get_db()
-
-        attributs = db.fetchall(
-            "SELECT nom_attribut FROM attributs_produits "
-            "WHERE categorie_id IS NULL ORDER BY nom_attribut"
-        )
+        attributs = self.viewmodel.lister_attributs_globaux()
 
         self.attributs_widgets = {}
 
@@ -243,24 +239,18 @@ class ProduitsView(QWidget):
         return groupe
 
     def _charger_categories(self):
-        """Charge les catégories dans le combo (par ID)."""
-        from models.categorie_produit import CategorieProduitModel
-
+        """Charge les categories dans le combo (par ID)."""
         self.input_categorie.clear()
         self.input_categorie.addItem("\u2014 Sans cat\u00e9gorie \u2014", None)
 
-        cat_model = CategorieProduitModel()
-        categories = cat_model.lister_categories(actives_uniquement=True)
+        categories = self.viewmodel.lister_categories()
 
         for cat in categories:
             self.input_categorie.addItem(cat['nom'], cat['id'])
 
     def _charger_produits(self):
         """Charge les produits dans le tableau."""
-        from models.produit import ProduitModel
-
-        produit_model = ProduitModel()
-        produits = produit_model.lister_produits()
+        produits = self.viewmodel.lister_produits()
 
         self.table_produits.setRowCount(len(produits))
 
@@ -309,11 +299,8 @@ class ProduitsView(QWidget):
             self.table_produits.setCellWidget(row, 6, btn_layout_widget)
 
     def _editer_produit(self, produit_id: int):
-        """Charge un produit pour édition."""
-        from models.produit import ProduitModel
-
-        produit_model = ProduitModel()
-        produit = produit_model.obtenir_produit(produit_id)
+        """Charge un produit pour edition."""
+        produit = self.viewmodel.obtenir_produit(produit_id)
 
         if not produit:
             return
@@ -337,16 +324,14 @@ class ProduitsView(QWidget):
         self.btn_ajouter.setText("Modifier le produit")
 
     def _supprimer_produit(self, produit_id: int):
-        """Supprime un produit après confirmation."""
+        """Supprime un produit apres confirmation."""
         rep = QMessageBox.question(
             self, "Confirmation",
             "Voulez-vous vraiment supprimer ce produit ?",
             QMessageBox.Yes | QMessageBox.No,
         )
         if rep == QMessageBox.Yes:
-            from models.produit import ProduitModel
-            produit_model = ProduitModel()
-            if produit_model.supprimer_produit(produit_id):
+            if self.viewmodel.supprimer_produit(produit_id):
                 self._charger_produits()
 
     def _ajouter_produit(self):
@@ -369,31 +354,18 @@ class ProduitsView(QWidget):
         stock = self.spin_stock.value()
         description = self.input_description.toPlainText().strip()
 
-        from models.produit import ProduitModel
-        produit_model = ProduitModel()
-
         if hasattr(self, '_mode_edition') and self._mode_edition and hasattr(self, '_produit_id'):
-            succes = produit_model.modifier_produit(
+            succes = self.viewmodel.modifier_produit(
                 self._produit_id,
-                {
-                    'nom': nom,
-                    'categorie_id': categorie_id,
-                    'prix': prix,
-                    'stock': stock,
-                    'description': description,
-                }
+                {'nom': nom, 'categorie_id': categorie_id, 'prix': prix, 'stock': stock, 'description': description}
             )
             if succes:
                 QMessageBox.information(self, "Succes", "Produit modifie avec succes !")
                 self._charger_produits()
                 self._reinitialiser_formulaire()
         else:
-            produit_id = produit_model.creer_produit(
-                categorie_id=categorie_id,
-                nom=nom,
-                prix=prix,
-                stock=stock,
-                description=description,
+            produit_id = self.viewmodel.creer_produit(
+                categorie_id=categorie_id, nom=nom, prix=prix, stock=stock, description=description,
             )
             if produit_id and produit_id > 0:
                 QMessageBox.information(

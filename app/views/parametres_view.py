@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 from utils.styles import style_section, style_input, style_bouton, style_scroll_area, Couleurs
+from viewmodels.parametres_vm import ParametresViewModel
 
 
 class ParametresView(QWidget):
@@ -16,6 +17,7 @@ class ParametresView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.viewmodel = ParametresViewModel()
         self._construire_ui()
         self._charger_donnees()
 
@@ -367,20 +369,10 @@ class ParametresView(QWidget):
 
     def _charger_attributs(self):
         """Charge les attributs globaux depuis la base de donnees."""
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            attributs = db.fetchall(
-                "SELECT nom_attribut FROM attributs_produits "
-                "WHERE categorie_id IS NULL ORDER BY nom_attribut"
-            )
-
-            self.list_attributs.clear()
-            for attr in attributs:
-                self.list_attributs.addItem(attr['nom_attribut'])
-        except Exception:
-            pass
+        attributs = self.viewmodel.lister_attributs()
+        self.list_attributs.clear()
+        for attr in attributs:
+            self.list_attributs.addItem(attr['nom_attribut'])
 
     def _ajouter_attribut(self):
         """Ajoute un nouvel attribut global."""
@@ -392,37 +384,18 @@ class ParametresView(QWidget):
             )
             return
 
-        from models.database import get_db
-        db = get_db()
-
         try:
-            db.execute(
-                "INSERT INTO attributs_produits (categorie_id, nom_attribut) "
-                "VALUES (NULL, ?)",
-                (nom,),
-            )
+            self.viewmodel.ajouter_attribut(nom)
             self._charger_attributs()
             self.input_nouvel_attribut.clear()
             QMessageBox.information(
                 self, "Succes", f"Attribut '{nom}' ajoute avec succes."
             )
         except Exception as e:
-            # Debug complet en console
-            print(f"ERREUR SQL ajout attribut: {e}")
-            print(f"Nom attribut: {nom}")
-            try:
-                schema = db.fetchall("PRAGMA table_info(attributs_produits)")
-                print("Schema attributs_produits :")
-                for col in schema:
-                    print(f"  - {col}")
-            except Exception:
-                pass
             QMessageBox.critical(
                 self,
                 "Erreur SQL",
-                f"Impossible d'ajouter l'attribut.\n\n"
-                f"Erreur : {str(e)}\n\n"
-                f"Verifiez la console pour plus de details."
+                f"Impossible d'ajouter l'attribut.\n\nErreur : {str(e)}",
             )
 
     def _supprimer_attribut(self):
@@ -448,26 +421,8 @@ class ParametresView(QWidget):
         )
 
         if reponse == QMessageBox.Yes:
-            from models.database import get_db
-            db = get_db()
-
             try:
-                # Recuperer l'ID de l'attribut
-                attr = db.fetchone(
-                    "SELECT id FROM attributs_produits "
-                    "WHERE nom_attribut = ? AND categorie_id IS NULL",
-                    (nom,),
-                )
-                if attr:
-                    db.execute(
-                        "DELETE FROM valeurs_attributs_produits "
-                        "WHERE attribut_id = ?",
-                        (attr['id'],),
-                    )
-                    db.execute(
-                        "DELETE FROM attributs_produits WHERE id = ?",
-                        (attr['id'],),
-                    )
+                self.viewmodel.supprimer_attribut(nom)
                 self._charger_attributs()
                 QMessageBox.information(
                     self, "Succes", f"Attribut '{nom}' supprime."
@@ -484,26 +439,16 @@ class ParametresView(QWidget):
 
     def _charger_donnees(self):
         """Charge les valeurs existantes depuis la base de donnees."""
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            champs = {
-                'nom_entreprise': self.input_nom_entreprise,
-                'adresse_entreprise': self.input_adresse_entreprise,
-                'telephone_entreprise': self.input_telephone_entreprise,
-                'email_recuperation': self.input_email_recuperation,
-            }
-
-            for cle, widget in champs.items():
-                result = db.fetchone(
-                    "SELECT valeur FROM parametres WHERE cle = ?", (cle,)
-                )
-                if result and result.get('valeur'):
-                    widget.setText(result['valeur'])
-
-        except Exception:
-            pass
+        donnees = self.viewmodel.charger_donnees()
+        champs = {
+            'nom_entreprise': self.input_nom_entreprise,
+            'adresse_entreprise': self.input_adresse_entreprise,
+            'telephone_entreprise': self.input_telephone_entreprise,
+            'email_recuperation': self.input_email_recuperation,
+        }
+        for cle, widget in champs.items():
+            if cle in donnees:
+                widget.setText(donnees[cle])
 
     # ------------------------------------------------------------------ #
     #                         Actions                                     #
@@ -519,30 +464,21 @@ class ParametresView(QWidget):
             )
             return
 
-        from models.database import get_db
-        db = get_db()
-
-        # Sauvegarder chaque champ
-        champs = {
+        donnees = {
             'nom_entreprise': nom,
             'adresse_entreprise': self.input_adresse_entreprise.text().strip(),
             'telephone_entreprise': self.input_telephone_entreprise.text().strip(),
         }
 
-        for cle, valeur in champs.items():
-            db.execute(
-                "INSERT OR REPLACE INTO parametres (cle, valeur) VALUES (?, ?)",
-                (cle, valeur),
+        if self.viewmodel.sauvegarder_entreprise(donnees):
+            # Actualiser le header de la fenetre principale
+            main_window = self.window()
+            if hasattr(main_window, 'actualiser_nom_entreprise'):
+                main_window.actualiser_nom_entreprise()
+
+            QMessageBox.information(
+                self, "Succes", "Informations de l'entreprise enregistrees."
             )
-
-        # Actualiser le header de la fenetre principale
-        main_window = self.window()
-        if hasattr(main_window, 'actualiser_nom_entreprise'):
-            main_window.actualiser_nom_entreprise()
-
-        QMessageBox.information(
-            self, "Succes", "Informations de l'entreprise enregistrees."
-        )
 
     def _modifier_mot_de_passe(self):
         QMessageBox.information(

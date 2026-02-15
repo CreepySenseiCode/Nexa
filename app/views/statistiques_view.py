@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 from utils.styles import style_scroll_area, Couleurs
+from viewmodels.stats_vm import StatsViewModel
 
 
 class StatistiquesView(QWidget):
@@ -19,6 +20,7 @@ class StatistiquesView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.viewmodel = StatsViewModel()
 
         # Variables de periode
         self.date_actuelle = datetime.now()
@@ -428,83 +430,29 @@ class StatistiquesView(QWidget):
     def _charger_stats(self):
         """Charge les statistiques reelles depuis la base de donnees."""
         try:
-            from models.database import get_db
-            db = get_db()
-
             date_debut, date_fin = self._obtenir_dates_periode()
+            donnees = self.viewmodel.charger_statistiques(date_debut, date_fin)
+
+            if not donnees:
+                return
 
             # --- KPIs ---
-            row = db.fetchone(
-                """
-                SELECT
-                    COUNT(*) AS nb_ventes,
-                    COALESCE(SUM(prix_total), 0) AS ca_total,
-                    COUNT(DISTINCT client_id) AS clients_actifs
-                FROM ventes
-                WHERE date_vente >= ? AND date_vente <= ?
-                """,
-                (date_debut, date_fin),
-            )
-
-            nb_ventes = row['nb_ventes'] if row else 0
-            ca_total = row['ca_total'] if row else 0
-            clients_actifs = row['clients_actifs'] if row else 0
-            panier_moyen = ca_total / nb_ventes if nb_ventes > 0 else 0
-
+            kpis = donnees['kpis']
             self._kpi_labels["Chiffre d'affaires"].setText(
-                f"{ca_total:.2f} EUR"
+                f"{kpis['ca_total']:.2f} EUR"
             )
-            self._kpi_labels["Nombre de ventes"].setText(str(nb_ventes))
-            self._kpi_labels["Clients actifs"].setText(str(clients_actifs))
+            self._kpi_labels["Nombre de ventes"].setText(str(kpis['nb_ventes']))
+            self._kpi_labels["Clients actifs"].setText(str(kpis['clients_actifs']))
             self._kpi_labels["Panier moyen"].setText(
-                f"{panier_moyen:.2f} EUR"
+                f"{kpis['panier_moyen']:.2f} EUR"
             )
 
-            # --- Top 5 Clients ---
-            top_clients = db.fetchall(
-                """
-                SELECT c.nom, c.prenom,
-                       SUM(v.prix_total) AS total_ca,
-                       COUNT(*) AS nb_achats
-                FROM ventes v
-                JOIN clients c ON c.id = v.client_id
-                WHERE v.date_vente >= ? AND v.date_vente <= ?
-                GROUP BY v.client_id
-                ORDER BY total_ca DESC
-                LIMIT 5
-                """,
-                (date_debut, date_fin),
-            )
-            self._maj_section_top(self._top_clients_layout, top_clients, "client")
-
-            # --- Top 5 Produits ---
-            top_produits = db.fetchall(
-                """
-                SELECT p.nom,
-                       SUM(v.quantite) AS total_qte,
-                       SUM(v.prix_total) AS total_ca
-                FROM ventes v
-                JOIN produits p ON p.id = v.produit_id
-                WHERE v.date_vente >= ? AND v.date_vente <= ?
-                GROUP BY v.produit_id
-                ORDER BY total_ca DESC
-                LIMIT 5
-                """,
-                (date_debut, date_fin),
-            )
-            self._maj_section_top(self._top_produits_layout, top_produits, "produit")
+            # --- Top sections ---
+            self._maj_section_top(self._top_clients_layout, donnees['top_clients'], "client")
+            self._maj_section_top(self._top_produits_layout, donnees['top_produits'], "produit")
 
             # --- Graphiques Plotly ---
-            ventes_list = db.fetchall(
-                """
-                SELECT date_vente, prix_total, quantite
-                FROM ventes
-                WHERE date_vente >= ? AND date_vente <= ?
-                ORDER BY date_vente
-                """,
-                (date_debut, date_fin),
-            )
-            self._generer_graphiques(ventes_list, top_produits)
+            self._generer_graphiques(donnees['ventes'], donnees['top_produits'])
 
         except Exception:
             pass

@@ -226,6 +226,48 @@ class VenteModel:
             return stats
 
     # ------------------------------------------------------------------
+    # Données pour graphiques
+    # ------------------------------------------------------------------
+
+    def obtenir_depenses_client(self, client_id: int) -> list[dict]:
+        """Retourne les ventes d'un client avec date et prix_total."""
+        try:
+            return self.db.fetchall(
+                """
+                SELECT date(date_vente) as date_vente, prix_total
+                FROM ventes
+                WHERE client_id = ?
+                ORDER BY date_vente
+                """,
+                (client_id,),
+            )
+        except Exception as e:
+            logger.error("Erreur depenses client %s : %s", client_id, e)
+            return []
+
+    def obtenir_repartition_categories(self, client_id: int) -> list[dict]:
+        """Retourne la repartition des achats par categorie pour un client."""
+        try:
+            return self.db.fetchall(
+                """
+                SELECT
+                    COALESCE(cp.nom, 'Sans categorie') as categorie,
+                    SUM(v.prix_total) as total,
+                    COUNT(*) as nombre
+                FROM ventes v
+                JOIN produits p ON v.produit_id = p.id
+                LEFT JOIN categories_produits cp ON p.categorie_id = cp.id
+                WHERE v.client_id = ?
+                GROUP BY cp.id, cp.nom
+                ORDER BY total DESC
+                """,
+                (client_id,),
+            )
+        except Exception as e:
+            logger.error("Erreur repartition categories client %s : %s", client_id, e)
+            return []
+
+    # ------------------------------------------------------------------
     # Listing général
     # ------------------------------------------------------------------
 

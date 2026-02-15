@@ -758,12 +758,7 @@ class VenteView(QWidget):
         self._client_id = client_id
 
         # Recuperer les infos du client
-        from models.database import get_db
-        db = get_db()
-        client = db.fetchone(
-            "SELECT nom, prenom, email FROM clients WHERE id = ?",
-            (client_id,),
-        )
+        client = self.viewmodel.obtenir_client(client_id)
         if client:
             nom = (client.get('nom') or '').upper()
             prenom = client.get('prenom') or ''

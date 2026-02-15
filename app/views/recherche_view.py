@@ -418,18 +418,7 @@ class RechercheView(QWidget):
             view.setHtml("<div style='text-align:center;padding:40px;color:#F44336;'>Plotly non install\u00e9</div>")
             return view
 
-        from models.database import get_db
-        db = get_db()
-
-        ventes = db.fetchall(
-            """
-            SELECT date(date_vente) as date_vente, prix_total
-            FROM ventes
-            WHERE client_id = ?
-            ORDER BY date_vente
-            """,
-            (client_id,),
-        )
+        ventes = self.viewmodel.obtenir_depenses_client(client_id)
 
         if not ventes:
             view = self._make_chart_view()
@@ -499,24 +488,7 @@ class RechercheView(QWidget):
             view.setHtml("<div style='text-align:center;padding:40px;color:#F44336;'>Plotly non install\u00e9</div>")
             return view
 
-        from models.database import get_db
-        db = get_db()
-
-        categories = db.fetchall(
-            """
-            SELECT
-                COALESCE(cp.nom, 'Sans cat\u00e9gorie') as categorie,
-                SUM(v.prix_total) as total,
-                COUNT(*) as nombre
-            FROM ventes v
-            JOIN produits p ON v.produit_id = p.id
-            LEFT JOIN categories_produits cp ON p.categorie_id = cp.id
-            WHERE v.client_id = ?
-            GROUP BY cp.id, cp.nom
-            ORDER BY total DESC
-            """,
-            (client_id,),
-        )
+        categories = self.viewmodel.obtenir_repartition_categories(client_id)
 
         if not categories:
             view = self._make_chart_view()

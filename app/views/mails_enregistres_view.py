@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
 from utils.styles import style_bouton, style_onglet, style_scroll_area, Couleurs
+from viewmodels.mails_vm import MailsViewModel
 
 
 class MailsEnregistresView(QWidget):
@@ -18,6 +19,7 @@ class MailsEnregistresView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.viewmodel = MailsViewModel()
         self._construire_ui()
         self._charger_templates()
 
@@ -153,22 +155,13 @@ class MailsEnregistresView(QWidget):
         self.setStyleSheet("background-color: #F5F5F5;")
 
     def _charger_templates(self):
-        """Charge les templates depuis la base de donn\u00e9es."""
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            mails = db.fetchall(
-                "SELECT id, nom_mail, objet FROM mails_enregistres ORDER BY date_modification DESC"
-            )
-
-            self.list_mails.clear()
-            for mail in mails:
-                item = QListWidgetItem(mail['nom_mail'])
-                item.setData(Qt.ItemDataRole.UserRole, mail['id'])
-                self.list_mails.addItem(item)
-        except Exception:
-            pass
+        """Charge les templates depuis la base de donnees."""
+        mails = self.viewmodel.lister_mails()
+        self.list_mails.clear()
+        for mail in mails:
+            item = QListWidgetItem(mail['nom_mail'])
+            item.setData(Qt.ItemDataRole.UserRole, mail['id'])
+            self.list_mails.addItem(item)
 
     def _changer_tab(self, tab: str):
         """Change l'onglet actif."""
@@ -185,63 +178,37 @@ class MailsEnregistresView(QWidget):
         self._charger_templates()
 
     def _on_mail_selectionne(self, current, previous):
-        """Affiche le contenu du mail s\u00e9lectionn\u00e9."""
+        """Affiche le contenu du mail selectionne."""
         if not current:
             self.label_objet_preview.setText("Objet : -")
             self.text_preview.clear()
             return
-
         mail_id = current.data(Qt.ItemDataRole.UserRole)
         if not mail_id:
             return
-
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            mail = db.fetchone(
-                "SELECT * FROM mails_enregistres WHERE id = ?", (mail_id,)
-            )
-            if mail:
-                self.label_objet_preview.setText(f"Objet : {mail['objet']}")
-                contenu = mail.get('contenu_texte') or mail.get('contenu_html', '')
-                self.text_preview.setText(contenu)
-        except Exception:
-            pass
+        mail = self.viewmodel.obtenir_mail(mail_id)
+        if mail:
+            self.label_objet_preview.setText(f"Objet : {mail['objet']}")
+            contenu = mail.get('contenu_texte') or mail.get('contenu_html', '')
+            self.text_preview.setText(contenu)
 
     def _nouveau_template(self):
-        """Cr\u00e9e un nouveau template."""
-        nom, ok = QInputDialog.getText(
-            self, "Nouveau template", "Nom du template :"
-        )
+        """Cree un nouveau template."""
+        nom, ok = QInputDialog.getText(self, "Nouveau template", "Nom du template :")
         if ok and nom.strip():
             try:
-                from models.database import get_db
-                db = get_db()
-
-                db.execute(
-                    "INSERT INTO mails_enregistres (nom_mail, objet, contenu_html) "
-                    "VALUES (?, '', '')",
-                    (nom.strip(),),
-                )
+                self.viewmodel.creer_mail(nom.strip())
                 self._charger_templates()
-                QMessageBox.information(
-                    self, "Succ\u00e8s", f"Template '{nom}' cr\u00e9\u00e9 avec succ\u00e8s."
-                )
+                QMessageBox.information(self, "Succes", f"Template '{nom}' cree avec succes.")
             except Exception as e:
-                QMessageBox.critical(
-                    self, "Erreur", f"Erreur lors de la cr\u00e9ation : {e}"
-                )
+                QMessageBox.critical(self, "Erreur", f"Erreur lors de la creation : {e}")
 
     def _supprimer_mail(self):
-        """Supprime le mail s\u00e9lectionn\u00e9."""
+        """Supprime le mail selectionne."""
         item = self.list_mails.currentItem()
         if not item:
-            QMessageBox.warning(
-                self, "Erreur", "Veuillez s\u00e9lectionner un mail \u00e0 supprimer."
-            )
+            QMessageBox.warning(self, "Erreur", "Veuillez selectionner un mail a supprimer.")
             return
-
         reponse = QMessageBox.question(
             self, "Confirmation",
             f"Voulez-vous vraiment supprimer '{item.text()}' ?",
@@ -250,9 +217,7 @@ class MailsEnregistresView(QWidget):
         if reponse == QMessageBox.Yes:
             mail_id = item.data(Qt.ItemDataRole.UserRole)
             try:
-                from models.database import get_db
-                db = get_db()
-                db.execute("DELETE FROM mails_enregistres WHERE id = ?", (mail_id,))
+                self.viewmodel.supprimer_mail(mail_id)
                 self._charger_templates()
             except Exception as e:
                 QMessageBox.critical(self, "Erreur", f"Erreur : {e}")

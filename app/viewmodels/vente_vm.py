@@ -100,6 +100,10 @@ class VenteViewModel(QObject):
         """Retourne les dernières ventes d'un client."""
         return self.vente_model.obtenir_ventes_client(client_id, limite)
 
+    def obtenir_client(self, client_id: int) -> dict:
+        """Retourne les infos basiques d'un client (nom, prenom, email)."""
+        return self.client_model.obtenir_client(client_id)
+
     def obtenir_prix_produit(self, produit_id: int) -> float:
         """Retourne le prix d'un produit."""
         produit = self.produit_model.obtenir_produit(produit_id)

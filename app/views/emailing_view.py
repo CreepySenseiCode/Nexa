@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, QDateTime
 from PySide6.QtGui import QFont, QTextImageFormat
 
 from utils.styles import style_groupe, style_input, style_bouton, style_scroll_area, Couleurs
+from viewmodels.emailing_vm import EmailingViewModel
 
 
 class EmailingView(QWidget):
@@ -20,6 +21,7 @@ class EmailingView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.viewmodel = EmailingViewModel()
         self._construire_ui()
 
     def _construire_ui(self):
@@ -223,30 +225,14 @@ class EmailingView(QWidget):
         if len(texte) < 2:
             self.list_resultats_client.clear()
             return
-
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            clients = db.fetchall(
-                """
-                SELECT id, nom, prenom, email
-                FROM clients
-                WHERE nom LIKE ? OR prenom LIKE ? OR email LIKE ?
-                LIMIT 10
-                """,
-                (f"%{texte}%", f"%{texte}%", f"%{texte}%"),
+        clients = self.viewmodel.rechercher_clients(texte)
+        self.list_resultats_client.clear()
+        for client in clients:
+            item = QListWidgetItem(
+                f"{client['prenom']} {client['nom']} ({client['email']})"
             )
-
-            self.list_resultats_client.clear()
-            for client in clients:
-                item = QListWidgetItem(
-                    f"{client['prenom']} {client['nom']} ({client['email']})"
-                )
-                item.setData(Qt.ItemDataRole.UserRole, client)
-                self.list_resultats_client.addItem(item)
-        except Exception:
-            pass
+            item.setData(Qt.ItemDataRole.UserRole, client)
+            self.list_resultats_client.addItem(item)
 
     def _selectionner_client(self, item: QListWidgetItem):
         """Selectionne un client."""
@@ -262,40 +248,16 @@ class EmailingView(QWidget):
     def _appliquer_filtres(self):
         """Applique les filtres et charge les clients correspondants."""
         try:
-            from models.database import get_db
-            db = get_db()
+            situation = self.combo_famille.currentText()
+            interets_text = self.input_interets.text().strip()
+            interets = [i.strip() for i in interets_text.split(',') if i.strip()] if interets_text else None
 
-            where_clauses = []
-            params = []
-
-            # Filtre age
-            age_min = self.spin_age_min.value()
-            age_max = self.spin_age_max.value()
-            where_clauses.append(
-                "(julianday('now') - julianday(date_naissance)) / 365.25 "
-                "BETWEEN ? AND ?"
+            clients = self.viewmodel.filtrer_clients(
+                age_min=self.spin_age_min.value(),
+                age_max=self.spin_age_max.value(),
+                situation=situation,
+                interets=interets,
             )
-            params.extend([age_min, age_max])
-
-            # Filtre famille
-            if self.combo_famille.currentText() != "Toutes":
-                where_clauses.append("situation_maritale = ?")
-                params.append(self.combo_famille.currentText())
-
-            # Filtre centres d'interet
-            interets = self.input_interets.text().strip()
-            if interets:
-                for interet in interets.split(','):
-                    where_clauses.append("centres_interet LIKE ?")
-                    params.append(f"%{interet.strip()}%")
-
-            query = f"""
-                SELECT id, nom, prenom, email
-                FROM clients
-                WHERE {' AND '.join(where_clauses)}
-            """
-
-            clients = db.fetchall(query, tuple(params))
 
             self.list_destinataires.clear()
             for client in clients:
@@ -306,8 +268,7 @@ class EmailingView(QWidget):
                 self.list_destinataires.addItem(item)
 
             QMessageBox.information(
-                self,
-                "Filtres appliques",
+                self, "Filtres appliques",
                 f"{len(clients)} client(s) correspondent aux criteres",
             )
         except Exception as e:
@@ -315,23 +276,14 @@ class EmailingView(QWidget):
 
     def _charger_tous_les_clients(self):
         """Charge TOUS les clients."""
-        try:
-            from models.database import get_db
-            db = get_db()
-
-            clients = db.fetchall(
-                "SELECT id, nom, prenom, email FROM clients"
+        clients = self.viewmodel.charger_tous_les_clients()
+        self.list_destinataires.clear()
+        for client in clients:
+            item = QListWidgetItem(
+                f"{client['prenom']} {client['nom']} - {client['email']}"
             )
-
-            self.list_destinataires.clear()
-            for client in clients:
-                item = QListWidgetItem(
-                    f"{client['prenom']} {client['nom']} - {client['email']}"
-                )
-                item.setData(Qt.ItemDataRole.UserRole, client['id'])
-                self.list_destinataires.addItem(item)
-        except Exception:
-            pass
+            item.setData(Qt.ItemDataRole.UserRole, client['id'])
+            self.list_destinataires.addItem(item)
 
     # ------------------------------------------------------------------ #
     #                     Section Contenu (editeur riche)                 #
