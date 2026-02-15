@@ -378,7 +378,8 @@ class DatabaseManager:
         self._in_transaction: bool = False
 
         # Créer le répertoire parent s'il n'existe pas encore
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        if self.db_path != ":memory:":
+            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
 
         # Initialiser la base de données (tables + données par défaut)
         self._initialiser_base()
