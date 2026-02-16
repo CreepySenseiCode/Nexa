@@ -108,12 +108,6 @@ class StatistiquesView(QWidget):
         """Cree l'en-tete avec le titre et la navigation de periode."""
         header = QHBoxLayout()
 
-        titre = QLabel("Statistiques")
-        titre.setStyleSheet(
-            "font-size: 20pt; font-weight: bold; color: #2196F3;"
-        )
-        header.addWidget(titre)
-        header.addStretch()
 
         # Selecteur de type de periode
         periode_group = QFrame()
@@ -500,6 +494,30 @@ class StatistiquesView(QWidget):
                 "color:#F44336;font-family:sans-serif;'>"
                 "<h3>Erreur de chargement</h3></body></html>"
             )
+
+    def charger_periode(self, debut: str, fin: str):
+        """Charge les statistiques pour une période donnée."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Chargement stats période : {debut} → {fin}")
+
+        # Convertir les dates
+        from datetime import datetime
+        try:
+            date_debut = datetime.strptime(debut, "%Y-%m-%d")
+            date_fin = datetime.strptime(fin, "%Y-%m-%d")
+
+            # Mettre à jour la vue actuelle
+            self.date_actuelle = date_debut
+
+            # Calculer et afficher la période
+            self._mettre_a_jour_label_periode()
+
+            # Charger les stats pour cette période
+            self._charger_stats()
+
+        except Exception as e:
+            logger.error(f"Erreur chargement période : {e}", exc_info=True)
 
     def _maj_section_top(
         self, layout: QVBoxLayout, items: list[dict], type_item: str

@@ -181,11 +181,6 @@ class ClientView(QWidget):
         toggle_layout.setContentsMargins(30, 15, 30, 0)
         toggle_layout.setSpacing(10)
 
-        titre_page = QLabel("Clients")
-        titre_page.setStyleSheet(
-            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
-        )
-        toggle_layout.addWidget(titre_page)
         toggle_layout.addStretch()
 
         self.btn_toggle_liste = QPushButton("Liste")
@@ -228,8 +223,8 @@ class ClientView(QWidget):
         page = QWidget()
         page.setStyleSheet(f"background-color: {Couleurs.BLANC};")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 15, 30, 30)
-        layout.setSpacing(15)
+        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setSpacing(8)
 
         # Barre de recherche
         self.input_recherche_client = QLineEdit()
@@ -238,7 +233,12 @@ class ClientView(QWidget):
         self.input_recherche_client.textChanged.connect(self._charger_liste_clients)
         layout.addWidget(self.input_recherche_client)
 
-        # Widget de resultats avec cartes
+        # Label nombre résultats (proche de la recherche)
+        self.label_nb_clients = QLabel()
+        self.label_nb_clients.setStyleSheet("color: #7f8c8d; font-size: 11pt; padding: 5px 0;")
+        layout.addWidget(self.label_nb_clients)
+
+        # Widget de resultats avec cartes - SANS espacement supplémentaire
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea { border: none; }")
@@ -248,7 +248,7 @@ class ClientView(QWidget):
         self.widget_resultats.client_selected.connect(self._ouvrir_client_depuis_carte)
         scroll.setWidget(self.widget_resultats)
 
-        layout.addWidget(scroll)
+        layout.addWidget(scroll)  # Scroll prend tout l'espace restant
 
         return page
 
@@ -258,11 +258,16 @@ class ClientView(QWidget):
         search_terms = []
         if hasattr(self, 'input_recherche_client'):
             terme = self.input_recherche_client.text().strip()
+
         if terme:
             clients = self.viewmodel.rechercher_clients(terme)
             search_terms = terme.split()
+            if hasattr(self, 'label_nb_clients'):
+                self.label_nb_clients.setText(f"{len(clients)} résultat(s)")
         else:
             clients = self.viewmodel.lister_clients()
+            if hasattr(self, 'label_nb_clients'):
+                self.label_nb_clients.setText(f"{len(clients)} client(s)")
 
         # Afficher dans le widget de cartes
         if hasattr(self, 'widget_resultats'):

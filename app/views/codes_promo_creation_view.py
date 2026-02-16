@@ -57,11 +57,6 @@ class CodesPromoCreationView(QWidget):
         toggle_layout.setContentsMargins(30, 15, 30, 0)
         toggle_layout.setSpacing(10)
 
-        titre = QLabel("Codes promotionnels")
-        titre.setStyleSheet(
-            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
-        )
-        toggle_layout.addWidget(titre)
         toggle_layout.addStretch()
 
         self.btn_toggle_liste = QPushButton("Liste")

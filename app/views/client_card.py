@@ -156,7 +156,7 @@ class SearchResultsWidget(QWidget):
         self._conteneur = QWidget()
         self._layout_cards = QVBoxLayout(self._conteneur)
         self._layout_cards.setContentsMargins(0, 0, 0, 0)
-        self._layout_cards.setSpacing(4)
+        self._layout_cards.setSpacing(8)
         self._layout_cards.addStretch()
 
         self._scroll.setWidget(self._conteneur)
@@ -171,13 +171,14 @@ class SearchResultsWidget(QWidget):
         """
         self.vider()
 
-        if not clients:
-            self._label_compteur.setText("Aucun client trouve")
-            self._label_compteur.setVisible(True)
-            return
+        # Ne pas afficher le label compteur interne (géré dans client_view)
+        self._label_compteur.setVisible(False)
 
-        self._label_compteur.setText(f"{len(clients)} client(s) trouve(s)")
-        self._label_compteur.setVisible(True)
+        if not clients:
+            label_vide = QLabel("Aucun client trouvé")
+            label_vide.setStyleSheet("color: #7f8c8d; padding: 20px;")
+            self._layout_cards.insertWidget(0, label_vide)
+            return
 
         for client in clients:
             card = ClientCard(client, search_terms)

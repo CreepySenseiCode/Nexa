@@ -122,6 +122,16 @@ def main():
         fenetre.definir_page(13, vue_parametres)
 
         # --- Connexion inter-vues ---
+        # Connexion calendrier → statistiques
+        def ouvrir_stats_avec_periode(debut: str, fin: str):
+            """Ouvre l'onglet Statistiques avec une période spécifique."""
+            logger.info(f"Ouverture Statistiques avec période : {debut} → {fin}")
+            fenetre._changer_page(7)  # Index de statistiques_view
+            if hasattr(vue_statistiques, 'charger_periode'):
+                vue_statistiques.charger_periode(debut, fin)
+
+        vue_calendrier.voir_stats_periode.connect(ouvrir_stats_avec_periode)
+
         # Quand la vue Recherche demande une modification de client,
         # basculer vers l'onglet Client en mode édition
         def ouvrir_edition_client(client_id: int):

@@ -82,11 +82,6 @@ class RechercheView(QWidget):
         toggle_layout.setContentsMargins(20, 15, 20, 0)
         toggle_layout.setSpacing(10)
 
-        titre_toggle = QLabel("Recherche")
-        titre_toggle.setStyleSheet(
-            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
-        )
-        toggle_layout.addWidget(titre_toggle)
         toggle_layout.addStretch()
 
         self.btn_mode_client = QPushButton("Client")

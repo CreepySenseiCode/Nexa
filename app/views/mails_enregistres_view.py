@@ -17,8 +17,12 @@ from viewmodels.mails_vm import MailsViewModel
 class MailsEnregistresView(QWidget):
     """Interface des mails enregistr\u00e9s (templates et brouillons)."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, mode="tous", parent=None):
+        """
+        mode: "tous", "brouillons", "templates"
+        """
+        super().__init__(parent)
+        self.mode_affichage = mode
         self.viewmodel = MailsViewModel()
         self._construire_ui()
         self._charger_templates()
@@ -50,6 +54,11 @@ class MailsEnregistresView(QWidget):
         self.btn_tab_brouillons.setStyleSheet(style_onglet(False))
         self.btn_tab_brouillons.clicked.connect(lambda: self._changer_tab("brouillons"))
         tabs_layout.addWidget(self.btn_tab_brouillons)
+
+        # Masquer les tabs internes si un mode spécifique est défini
+        if self.mode_affichage != "tous":
+            self.btn_tab_templates.hide()
+            self.btn_tab_brouillons.hide()
 
         layout_gauche.addLayout(tabs_layout)
 
@@ -151,11 +160,40 @@ class MailsEnregistresView(QWidget):
         self.setStyleSheet("background-color: #F5F5F5;")
 
     def _charger_templates(self):
-        """Charge les templates depuis la base de donnees."""
-        mails = self.viewmodel.lister_mails()
+        """Charge les mails selon le mode (brouillons, templates, ou tous)."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if self.mode_affichage == "brouillons":
+            # Requête filtrée sur brouillons uniquement
+            from models.database import Database
+            db = Database()
+            mails = db.fetchall("""
+                SELECT * FROM mails_enregistres
+                WHERE type = 'brouillon'
+                ORDER BY date_creation DESC
+            """)
+            logger.info(f"Chargement brouillons : {len(mails)} mails")
+
+        elif self.mode_affichage == "templates":
+            # Requête filtrée sur templates uniquement
+            from models.database import Database
+            db = Database()
+            mails = db.fetchall("""
+                SELECT * FROM mails_enregistres
+                WHERE type = 'template'
+                ORDER BY date_creation DESC
+            """)
+            logger.info(f"Chargement templates : {len(mails)} mails")
+
+        else:
+            # Tous les mails (mode par défaut)
+            mails = self.viewmodel.lister_mails()
+            logger.info(f"Chargement tous mails : {len(mails)} mails")
+
         self.list_mails.clear()
         for mail in mails:
-            item = QListWidgetItem(mail['nom_mail'])
+            item = QListWidgetItem(mail.get('nom_mail', mail.get('nom', 'Sans nom')))
             item.setData(Qt.ItemDataRole.UserRole, mail['id'])
             self.list_mails.addItem(item)
 

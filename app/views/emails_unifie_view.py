@@ -38,11 +38,6 @@ class EmailsUnifieView(QWidget):
         barre_layout = QHBoxLayout(barre)
         barre_layout.setContentsMargins(30, 15, 30, 0)
         barre_layout.setSpacing(10)
-
-        titre = QLabel("Emails")
-        titre.setStyleSheet(
-            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
-        )
         barre_layout.addWidget(titre)
         barre_layout.addStretch()
 
@@ -82,8 +77,10 @@ class EmailsUnifieView(QWidget):
 
         self.vue_reception = BoiteReceptionView()
         self.vue_envoyes = HistoriqueMailsView()
-        self.vue_brouillons = MailsEnregistresView()
-        self.vue_templates = MailsEnregistresView()  # Vue séparée pour templates
+        # Vue Brouillons (filtrée sur brouillons uniquement)
+        self.vue_brouillons = MailsEnregistresView(mode="brouillons")
+        # Vue Templates (filtrée sur templates uniquement)
+        self.vue_templates = MailsEnregistresView(mode="templates")
 
         self.pile.addWidget(self.vue_reception)
         self.pile.addWidget(self.vue_envoyes)

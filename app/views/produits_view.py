@@ -48,11 +48,6 @@ class ProduitsView(QWidget):
         toggle_layout.setContentsMargins(30, 15, 30, 0)
         toggle_layout.setSpacing(10)
 
-        titre = QLabel("Produits")
-        titre.setStyleSheet(
-            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
-        )
-        toggle_layout.addWidget(titre)
         toggle_layout.addStretch()
 
         self.btn_toggle_liste = QPushButton("Liste")
@@ -93,32 +88,49 @@ class ProduitsView(QWidget):
         self._changer_page("liste")
 
     def _changer_page(self, page: str):
-        """Change la page affichee (liste/creation/archives/fiche)."""
-        # Désactiver TOUS les boutons puis activer le bon
-        for btn in [self.btn_toggle_liste, self.btn_toggle_creation, self.btn_toggle_archives]:
-            btn.setStyleSheet(style_toggle(False))
+        """Change de page dans le stack (liste/creation/archives)."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"=== Changement page : {page} ===")
 
-        # Activer le bon bouton et gérer l'état
+        # Mettre à jour l'état AVANT tout
+        self._affiche_archives = (page == "archives")
+
+        # Désactiver TOUS les boutons
+        self.btn_toggle_liste.setChecked(False)
+        self.btn_toggle_creation.setChecked(False)
+        self.btn_toggle_archives.setChecked(False)
+
+        # Réinitialiser styles
+        self.btn_toggle_liste.setStyleSheet(style_toggle(False))
+        self.btn_toggle_creation.setStyleSheet(style_toggle(False))
+        self.btn_toggle_archives.setStyleSheet(style_toggle(False))
+
+        # Activer le bon bouton et changer de vue
         if page == "liste":
-            self._affiche_archives = False
+            self.btn_toggle_liste.setChecked(True)
             self.btn_toggle_liste.setStyleSheet(style_toggle(True))
             self.pile.setCurrentIndex(self.PAGE_LISTE)
+            self._affiche_archives = False
             self._charger_produits()
 
         elif page == "creation":
-            self._affiche_archives = False
+            self.btn_toggle_creation.setChecked(True)
             self.btn_toggle_creation.setStyleSheet(style_toggle(True))
             self.pile.setCurrentIndex(self.PAGE_CREATION)
 
         elif page == "archives":
-            self._affiche_archives = True
+            self.btn_toggle_archives.setChecked(True)
             self.btn_toggle_archives.setStyleSheet(style_toggle(True))
-            self.pile.setCurrentIndex(self.PAGE_LISTE)  # Même table que liste
-            self._charger_produits()  # Mais filtrée sur archives
+            self.pile.setCurrentIndex(self.PAGE_LISTE)  # Même vue que liste
+            self._affiche_archives = True
+            self._charger_produits()
 
         elif page == "fiche":
             # Pas de changement de toggle pour la fiche
             self.pile.setCurrentIndex(self.PAGE_FICHE)
+
+        logger.info(f"Page changée : index={self.pile.currentIndex()}, archives={self._affiche_archives}")
 
         # Masquer les boutons toggle sur la fiche
         visible = page != "fiche"
@@ -347,12 +359,22 @@ class ProduitsView(QWidget):
             self.input_categorie.addItem(cat['nom'], cat['id'])
 
     def _charger_produits(self):
-        """Charge les produits dans le tableau."""
+        """Charge la liste des produits (liste normale ou archives)."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         terme = self.input_recherche.text().strip() if hasattr(self, 'input_recherche') else ''
-        if terme:
-            produits = self.viewmodel.rechercher_produits(terme, archives=self._affiche_archives)
+
+        if self._affiche_archives:
+            produits = self.viewmodel.lister_produits(archives=True)
+            logger.info(f"Chargement archives : {len(produits)} produits")
         else:
-            produits = self.viewmodel.lister_produits(archives=self._affiche_archives)
+            if terme:
+                produits = self.viewmodel.rechercher_produits(terme, archives=False)
+                logger.info(f"Recherche liste : {len(produits)} produits")
+            else:
+                produits = self.viewmodel.lister_produits(archives=False)
+                logger.info(f"Chargement liste : {len(produits)} produits")
 
         self.table_produits.setRowCount(len(produits))
 
