@@ -28,3 +28,6 @@
 2026-02-16 09:27:00 - nexa - INFO - main.py:135 - Affichage de la fenêtre principale...
 2026-02-16 09:27:01 - nexa - INFO - main.py:141 - Interface chargée, en attente d'interactions utilisateur
 2026-02-16 11:10:09 - nexa - INFO - main.py:144 - Fermeture de l'application (code: 0)
+2026-02-16 13:04:00 - nexa - INFO - main.py:19 - ============================================================
+2026-02-16 13:04:00 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-02-16 13:04:00 - nexa - INFO - main.py:21 - ============================================================
