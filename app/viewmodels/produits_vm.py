@@ -22,9 +22,10 @@ class ProduitsViewModel(QObject):
         """Retourne les categories actives."""
         return self.categorie_model.lister_categories(actives_uniquement=True)
 
-    def lister_produits(self) -> list[dict]:
-        """Retourne tous les produits."""
-        return self.produit_model.lister_produits()
+    def lister_produits(self, archives: bool = False) -> list[dict]:
+        """Retourne les produits actifs ou archives."""
+        tous = self.produit_model.lister_produits()
+        return [p for p in tous if bool(p.get('archive', 0)) == archives]
 
     def obtenir_produit(self, produit_id: int) -> Optional[dict]:
         """Retourne un produit par ID."""
@@ -69,3 +70,59 @@ class ProduitsViewModel(QObject):
     def lister_attributs_globaux(self) -> list[dict]:
         """Retourne les noms d'attributs globaux."""
         return self.attribut_model.lister_attributs_globaux()
+
+    def archiver_produit(self, produit_id: int) -> bool:
+        """Archive un produit (stock = 0)."""
+        return self.modifier_produit(produit_id, {'archive': 1})
+
+    def desarchiver_produit(self, produit_id: int) -> bool:
+        """Desarchive un produit."""
+        return self.modifier_produit(produit_id, {'archive': 0})
+
+    def rechercher_produits(self, terme: str, archives: bool = False) -> list[dict]:
+        """Recherche des produits par nom (contient)."""
+        if not terme or len(terme) < 1:
+            return self.lister_produits(archives=archives)
+        tous = self.lister_produits(archives=archives)
+        terme_lower = terme.lower()
+        return [p for p in tous if terme_lower in (p.get('nom', '') or '').lower()]
+
+    def obtenir_attributs_produit(self, produit_id: int) -> list[dict]:
+        """Retourne les attributs d'un produit avec noms et valeurs."""
+        try:
+            return self.produit_model.db.fetchall(
+                "SELECT ap.nom_attribut, vap.valeur "
+                "FROM valeurs_attributs_produits vap "
+                "JOIN attributs_produits ap ON ap.id = vap.attribut_id "
+                "WHERE vap.produit_id = ?",
+                (produit_id,),
+            )
+        except Exception:
+            return []
+
+    def obtenir_stats_ventes_produit(self, produit_id: int) -> dict:
+        """Retourne les stats de vente d'un produit."""
+        try:
+            row = self.produit_model.db.fetchone(
+                "SELECT COUNT(*) AS nb_ventes, "
+                "COALESCE(SUM(quantite), 0) AS total_qte, "
+                "COALESCE(SUM(prix_total), 0) AS total_ca "
+                "FROM ventes WHERE produit_id = ?",
+                (produit_id,),
+            )
+            return dict(row) if row else {'nb_ventes': 0, 'total_qte': 0, 'total_ca': 0}
+        except Exception:
+            return {'nb_ventes': 0, 'total_qte': 0, 'total_ca': 0}
+
+    def obtenir_historique_ventes_produit(self, produit_id: int) -> list[dict]:
+        """Retourne l'historique des ventes d'un produit par date."""
+        try:
+            return self.produit_model.db.fetchall(
+                "SELECT DATE(date_vente) AS jour, "
+                "SUM(quantite) AS qte, SUM(prix_total) AS ca "
+                "FROM ventes WHERE produit_id = ? "
+                "GROUP BY DATE(date_vente) ORDER BY jour",
+                (produit_id,),
+            )
+        except Exception:
+            return []

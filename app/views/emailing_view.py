@@ -2,18 +2,98 @@
 Vue Emailing - Interface d'envoi d'emails avec editeur riche.
 """
 
+import os
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
-    QPushButton, QGroupBox, QScrollArea, QComboBox,
+    QPushButton, QGroupBox, QScrollArea, QComboBox, QFrame,
     QMessageBox, QFileDialog, QListWidget, QListWidgetItem,
     QFontComboBox, QSpinBox, QDialog, QDialogButtonBox,
-    QDateTimeEdit, QInputDialog,
+    QDateTimeEdit, QInputDialog, QSizePolicy,
 )
 from PySide6.QtCore import Qt, QDateTime
 from PySide6.QtGui import QFont, QTextImageFormat
 
+from PySide6.QtWidgets import QLayout
+
 from utils.styles import style_groupe, style_input, style_bouton, style_scroll_area, Couleurs
 from viewmodels.emailing_vm import EmailingViewModel
+
+
+class FlowLayout(QLayout):
+    """Layout qui dispose les widgets en lignes avec retour automatique."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._items = []
+        self._spacing = 6
+
+    def setSpacing(self, spacing):
+        self._spacing = spacing
+
+    def spacing(self):
+        return self._spacing
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def sizeHint(self):
+        from PySide6.QtCore import QSize
+        return QSize(200, 50)
+
+    def minimumSize(self):
+        from PySide6.QtCore import QSize
+        w = 0
+        h = 0
+        for item in self._items:
+            s = item.minimumSize()
+            w = max(w, s.width())
+            h = max(h, s.height())
+        return QSize(w, h)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._do_layout(self.geometry(), False, width)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._do_layout(rect, True)
+
+    def _do_layout(self, rect, apply, width=None):
+        x = rect.x()
+        y = rect.y()
+        line_height = 0
+        w = width if width is not None else rect.width()
+
+        for item in self._items:
+            item_size = item.sizeHint()
+            next_x = x + item_size.width() + self._spacing
+            if next_x - self._spacing > rect.x() + w and line_height > 0:
+                x = rect.x()
+                y += line_height + self._spacing
+                next_x = x + item_size.width() + self._spacing
+                line_height = 0
+            if apply:
+                from PySide6.QtCore import QRect
+                item.setGeometry(QRect(x, y, item_size.width(), item_size.height()))
+            x = next_x
+            line_height = max(line_height, item_size.height())
+        return y + line_height - rect.y()
 
 
 class EmailingView(QWidget):
@@ -29,12 +109,6 @@ class EmailingView(QWidget):
         layout_principal = QVBoxLayout()
         layout_principal.setSpacing(20)
         layout_principal.setContentsMargins(30, 30, 30, 30)
-
-        # Titre
-        titre = QLabel("Nouvel Email")
-        titre.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        titre.setStyleSheet("color: #1976D2; padding: 10px;")
-        layout_principal.addWidget(titre)
 
         # Scroll area
         scroll = QScrollArea()
@@ -469,7 +543,7 @@ class EmailingView(QWidget):
     # ------------------------------------------------------------------ #
 
     def _creer_section_pieces_jointes(self) -> QGroupBox:
-        """Section pieces jointes."""
+        """Section pieces jointes avec rectangles supprimables."""
         group = QGroupBox("Pieces jointes")
         group.setStyleSheet(style_groupe())
 
@@ -480,16 +554,45 @@ class EmailingView(QWidget):
         btn_ajouter_fichier.clicked.connect(self._ajouter_piece_jointe)
         layout.addWidget(btn_ajouter_fichier)
 
-        self.list_fichiers = QListWidget()
-        self.list_fichiers.setStyleSheet(
-            "QListWidget { border: 2px solid #E0E0E0; border-radius: 8px; "
-            "padding: 5px; background-color: white; }"
-        )
-        self.list_fichiers.setMaximumHeight(100)
-        layout.addWidget(self.list_fichiers)
+        # Conteneur pour les fichiers attaches (flow layout horizontal avec wrap)
+        self.pj_conteneur = QWidget()
+        self.pj_layout = FlowLayout(self.pj_conteneur)
+        self.pj_layout.setSpacing(8)
+        self.pj_fichiers = []  # liste des chemins complets
+        layout.addWidget(self.pj_conteneur)
 
         group.setLayout(layout)
         return group
+
+    def _creer_pj_rectangle(self, chemin: str) -> QFrame:
+        """Cree un rectangle stylise pour une piece jointe."""
+        nom_fichier = os.path.basename(chemin)
+        frame = QFrame()
+        frame.setStyleSheet(
+            f"QFrame {{ background-color: {Couleurs.PRIMAIRE_TRES_CLAIR}; "
+            f"border: 1px solid {Couleurs.PRIMAIRE_CLAIR}; border-radius: 8px; "
+            f"padding: 6px 10px; }}"
+        )
+        h = QHBoxLayout(frame)
+        h.setContentsMargins(8, 4, 4, 4)
+        h.setSpacing(8)
+
+        lbl = QLabel(nom_fichier)
+        lbl.setStyleSheet(f"font-size: 11pt; color: {Couleurs.PRIMAIRE_FONCE}; border: none;")
+        h.addWidget(lbl)
+
+        btn_x = QPushButton("X")
+        btn_x.setFixedSize(24, 24)
+        btn_x.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_x.setStyleSheet(
+            f"QPushButton {{ background-color: {Couleurs.DANGER}; color: white; "
+            f"border: none; border-radius: 12px; font-size: 10pt; font-weight: bold; }}"
+            f"QPushButton:hover {{ background-color: {Couleurs.DANGER_FONCE}; }}"
+        )
+        btn_x.clicked.connect(lambda: self._retirer_piece_jointe(chemin, frame))
+        h.addWidget(btn_x)
+
+        return frame
 
     # ------------------------------------------------------------------ #
     #                     Boutons d'action                                #
@@ -547,12 +650,27 @@ class EmailingView(QWidget):
     # ------------------------------------------------------------------ #
 
     def _ajouter_piece_jointe(self):
-        """Ajoute une piece jointe."""
+        """Ajoute des pieces jointes sous forme de rectangles."""
         fichiers, _ = QFileDialog.getOpenFileNames(
             self, "Selectionner des fichiers", "", "Tous les fichiers (*.*)"
         )
         for fichier in fichiers:
-            self.list_fichiers.addItem(fichier.split('/')[-1])
+            if fichier not in self.pj_fichiers:
+                self.pj_fichiers.append(fichier)
+                rect = self._creer_pj_rectangle(fichier)
+                self.pj_layout.addWidget(rect)
+
+    def _retirer_piece_jointe(self, chemin: str, frame: QFrame):
+        """Retire une piece jointe."""
+        if chemin in self.pj_fichiers:
+            self.pj_fichiers.remove(chemin)
+        # Remove from layout BEFORE deleting to avoid crash on next layout pass
+        for i in range(self.pj_layout.count()):
+            item = self.pj_layout.itemAt(i)
+            if item and item.widget() == frame:
+                self.pj_layout.takeAt(i)
+                break
+        frame.deleteLater()
 
     def _annuler(self):
         """Annule la creation d'email."""
@@ -651,6 +769,11 @@ class EmailingView(QWidget):
         self.input_objet.clear()
         self.text_message.clear()
         self.list_destinataires.clear()
-        self.list_fichiers.clear()
+        # Vider les pieces jointes
+        self.pj_fichiers.clear()
+        while self.pj_layout.count():
+            item = self.pj_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         self.combo_type.setCurrentIndex(0)
 

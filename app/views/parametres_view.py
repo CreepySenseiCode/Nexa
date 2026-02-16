@@ -1,5 +1,7 @@
 """Vue pour l'onglet Parametres."""
 
+import json
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QPushButton, QGroupBox, QDateEdit,
@@ -35,13 +37,6 @@ class ParametresView(QWidget):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 20, 30, 30)
 
-        # Titre
-        title = QLabel("Parametres")
-        title.setStyleSheet(
-            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE}; padding: 10px 0;"
-        )
-        layout.addWidget(title)
-
         # Section 1 : Informations de l'entreprise
         layout.addWidget(self._creer_section_entreprise())
 
@@ -62,6 +57,9 @@ class ParametresView(QWidget):
 
         # Section 7 : Base de donnees
         layout.addWidget(self._creer_section_database())
+
+        # Section 8 : Composition de la base de donnees
+        layout.addWidget(self._creer_section_composition_db())
 
         layout.addStretch()
         content.setLayout(layout)
@@ -304,6 +302,79 @@ class ParametresView(QWidget):
 
         box.setLayout(layout)
         return box
+
+    # ------------------------------------------------------------------ #
+    #               Composition de la base de donnees                    #
+    # ------------------------------------------------------------------ #
+
+    def _creer_section_composition_db(self) -> QGroupBox:
+        """Section pour configurer quelles informations supplementaires stocker."""
+        box = QGroupBox("Composition de la base de donnees")
+        box.setStyleSheet(style_section())
+
+        layout = QVBoxLayout()
+
+        info_label = QLabel(
+            "Choisissez quelles informations complementaires vous souhaitez "
+            "stocker pour vos clients. Ces champs seront visibles dans les "
+            "fiches clients et le formulaire de creation."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet(
+            "color: #666; font-size: 11pt; margin-bottom: 15px;"
+        )
+        layout.addWidget(info_label)
+
+        champs_composition = [
+            ("enfants", "Enfants (nombre, prenoms)"),
+            ("parents", "Parents (nom, prenom, contact)"),
+            ("conjoint", "Conjoint (nom, prenom, date naissance)"),
+            ("situation_familiale", "Situation familiale detaillee"),
+        ]
+
+        self._checkboxes_composition = {}
+        for cle, label in champs_composition:
+            cb = QCheckBox(label)
+            cb.setStyleSheet("font-size: 11pt; padding: 6px;")
+            self._checkboxes_composition[cle] = cb
+            layout.addWidget(cb)
+
+        btn_save = QPushButton("Enregistrer la composition")
+        btn_save.setStyleSheet(style_bouton())
+        btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_save.clicked.connect(self._sauvegarder_composition_db)
+        layout.addWidget(btn_save)
+
+        box.setLayout(layout)
+
+        # Charger l'etat sauvegarde
+        self._charger_composition_db()
+
+        return box
+
+    def _charger_composition_db(self):
+        """Charge la configuration de composition depuis les parametres."""
+        raw = self.viewmodel.params_model.obtenir_parametre('composition_db')
+        if raw:
+            try:
+                config = json.loads(raw)
+                for cle, cb in self._checkboxes_composition.items():
+                    cb.setChecked(config.get(cle, False))
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    def _sauvegarder_composition_db(self):
+        """Sauvegarde la configuration de composition dans les parametres."""
+        config = {
+            cle: cb.isChecked()
+            for cle, cb in self._checkboxes_composition.items()
+        }
+        self.viewmodel.params_model.definir_parametre(
+            'composition_db', json.dumps(config)
+        )
+        QMessageBox.information(
+            self, "Succes", "Configuration de la base enregistree."
+        )
 
     # ------------------------------------------------------------------ #
     #                  Attributs produits personnalisables                #

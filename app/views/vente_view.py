@@ -70,7 +70,6 @@ class VenteView(QWidget):
         layout_principal.addWidget(self._creer_section_article())
         layout_principal.addWidget(self._creer_section_panier())
         layout_principal.addWidget(self._creer_section_paiement())
-        layout_principal.addWidget(self._creer_section_historique())
 
         layout_principal.addStretch()
 
@@ -101,6 +100,7 @@ class VenteView(QWidget):
 
         # Resultats de recherche (cards)
         self._search_results = SearchResultsWidget()
+        self._search_results.setMinimumHeight(400)
         self._search_results.setVisible(False)
         layout_client.addWidget(self._search_results)
 
@@ -428,41 +428,6 @@ class VenteView(QWidget):
         layout_section.addLayout(layout_boutons)
 
         return section
-
-    def _creer_section_historique(self):
-        """Cree et retourne le QGroupBox de l'historique des ventes du client."""
-
-        groupe_historique = QGroupBox("Dernieres ventes du client")
-        layout_historique = QVBoxLayout(groupe_historique)
-
-        self.label_historique_vide = QLabel(
-            "Selectionnez un client pour voir son historique"
-        )
-        self.label_historique_vide.setAlignment(Qt.AlignCenter)
-        self.label_historique_vide.setStyleSheet(
-            "color: gray; font-style: italic;"
-        )
-        layout_historique.addWidget(self.label_historique_vide)
-
-        self.table_historique = QTableWidget()
-        self.table_historique.setColumnCount(4)
-        self.table_historique.setHorizontalHeaderLabels(
-            ["Date", "Produit", "Quantite", "Prix total"]
-        )
-        self.table_historique.horizontalHeader().setStretchLastSection(True)
-        self.table_historique.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Stretch
-        )
-        self.table_historique.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table_historique.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table_historique.setAlternatingRowColors(True)
-        self.table_historique.verticalHeader().setVisible(False)
-        self.table_historique.setRowCount(0)
-        self.table_historique.hide()
-
-        layout_historique.addWidget(self.table_historique)
-
-        return groupe_historique
 
     # ------------------------------------------------------------------ #
     #                        Connexion des signaux                        #
@@ -812,8 +777,6 @@ class VenteView(QWidget):
         self.input_recherche_client.blockSignals(False)
         self._widget_client_selectionne.setVisible(True)
 
-        self._charger_historique(client_id)
-
     def _deselectionner_client(self):
         """Deselectionne le client et re-affiche la barre de recherche."""
         self._client_id = None
@@ -821,45 +784,6 @@ class VenteView(QWidget):
         self.input_recherche_client.setVisible(True)
         self.input_recherche_client.setFocus()
         self.label_client_selectionne.setText("")
-        self.table_historique.setRowCount(0)
-        self.table_historique.hide()
-        self.label_historique_vide.show()
-
-    # ------------------------------------------------------------------ #
-    #                      Historique des ventes                          #
-    # ------------------------------------------------------------------ #
-
-    def _charger_historique(self, client_id: int):
-        """Charge l'historique des ventes du client dans le tableau."""
-        ventes = self.viewmodel.obtenir_historique_client(client_id)
-
-        if ventes:
-            self.label_historique_vide.hide()
-            self.table_historique.show()
-        else:
-            self.label_historique_vide.show()
-            self.table_historique.hide()
-
-        self.table_historique.setRowCount(len(ventes))
-        for i, vente in enumerate(ventes):
-            self.table_historique.setItem(
-                i, 0, QTableWidgetItem(vente.get('date_vente', ''))
-            )
-            self.table_historique.setItem(
-                i, 1,
-                QTableWidgetItem(
-                    vente.get('nom_produit', vente.get('nom', ''))
-                ),
-            )
-            self.table_historique.setItem(
-                i, 2, QTableWidgetItem(str(vente.get('quantite', 0)))
-            )
-            self.table_historique.setItem(
-                i, 3,
-                QTableWidgetItem(
-                    f"{vente.get('prix_total', 0):.2f} \u20ac"
-                ),
-            )
 
     # ------------------------------------------------------------------ #
     #                   Creation categorie / produit                      #
@@ -1006,7 +930,6 @@ class VenteView(QWidget):
             self, "\u2705 Succ\u00e8s",
             f"Vente enregistree avec succes ({nb} article(s)) !",
         )
-        self._charger_historique(self._client_id)
         self._reinitialiser_formulaire_vente()
 
     # ------------------------------------------------------------------ #
@@ -1038,6 +961,3 @@ class VenteView(QWidget):
         self._widget_client_selectionne.setVisible(False)
         self.input_recherche_client.setVisible(True)
         self._reinitialiser_formulaire_vente()
-        self.table_historique.setRowCount(0)
-        self.table_historique.hide()
-        self.label_historique_vide.show()

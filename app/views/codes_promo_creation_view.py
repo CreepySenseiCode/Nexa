@@ -10,11 +10,12 @@ from PySide6.QtWidgets import (
     QSpinBox, QDateEdit, QTextEdit, QCheckBox, QComboBox,
     QGroupBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QAbstractItemView, QScrollArea,
-    QRadioButton,
+    QRadioButton, QStackedWidget,
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 
+from utils.styles import style_toggle, Couleurs
 from viewmodels.codes_promo_vm import CodesPromoViewModel
 
 
@@ -38,10 +39,58 @@ class CodesPromoCreationView(QWidget):
     #                        Construction de l'UI                         #
     # ------------------------------------------------------------------ #
 
-    def _construire_ui(self):
-        """Construit l'interface complete."""
+    # Pages du stacked widget
+    PAGE_LISTE = 0
+    PAGE_NOUVEAU = 1
 
-        # Conteneur scrollable
+    def _construire_ui(self):
+        """Construit l'interface complete avec toggle Liste/Nouveau."""
+
+        layout_self = QVBoxLayout(self)
+        layout_self.setContentsMargins(0, 0, 0, 0)
+        layout_self.setSpacing(0)
+
+        # === BARRE DE TOGGLE ===
+        barre_toggle = QWidget()
+        barre_toggle.setStyleSheet(f"background-color: {Couleurs.BLANC};")
+        toggle_layout = QHBoxLayout(barre_toggle)
+        toggle_layout.setContentsMargins(30, 15, 30, 0)
+        toggle_layout.setSpacing(10)
+
+        titre = QLabel("Codes promotionnels")
+        titre.setStyleSheet(
+            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
+        )
+        toggle_layout.addWidget(titre)
+        toggle_layout.addStretch()
+
+        self.btn_toggle_liste = QPushButton("Liste")
+        self.btn_toggle_liste.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_toggle_liste.clicked.connect(lambda: self._changer_page_promo(self.PAGE_LISTE))
+
+        self.btn_toggle_nouveau = QPushButton("Nouveau code")
+        self.btn_toggle_nouveau.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_toggle_nouveau.clicked.connect(lambda: self._changer_page_promo(self.PAGE_NOUVEAU))
+
+        toggle_layout.addWidget(self.btn_toggle_liste)
+        toggle_layout.addWidget(self.btn_toggle_nouveau)
+
+        layout_self.addWidget(barre_toggle)
+
+        # === STACKED WIDGET ===
+        self.pile_promo = QStackedWidget()
+
+        # Page 0 : Liste (tableau)
+        page_liste = QWidget()
+        page_liste.setStyleSheet("background-color: #FFFFFF;")
+        layout_liste = QVBoxLayout(page_liste)
+        layout_liste.setSpacing(16)
+        layout_liste.setContentsMargins(20, 20, 20, 20)
+        self._construire_tableau(layout_liste)
+        layout_liste.addStretch()
+        self.pile_promo.addWidget(page_liste)
+
+        # Page 1 : Nouveau code (formulaire)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
@@ -49,31 +98,26 @@ class CodesPromoCreationView(QWidget):
 
         conteneur = QWidget()
         conteneur.setStyleSheet("background-color: #FFFFFF;")
-        layout_principal = QVBoxLayout(conteneur)
-        layout_principal.setSpacing(16)
-        layout_principal.setContentsMargins(20, 20, 20, 20)
-
-        # --- Titre principal ---
-        label_titre = QLabel("Gestion des codes promotionnels")
-        font_titre = QFont()
-        font_titre.setPointSize(16)
-        font_titre.setBold(True)
-        label_titre.setFont(font_titre)
-        layout_principal.addWidget(label_titre)
-
-        # --- Section formulaire de creation ---
-        self._construire_formulaire(layout_principal)
-
-        # --- Section tableau des codes existants ---
-        self._construire_tableau(layout_principal)
-
-        layout_principal.addStretch()
-
-        # Finaliser le scroll
+        layout_form = QVBoxLayout(conteneur)
+        layout_form.setSpacing(16)
+        layout_form.setContentsMargins(20, 20, 20, 20)
+        self._construire_formulaire(layout_form)
+        layout_form.addStretch()
         scroll.setWidget(conteneur)
-        layout_self = QVBoxLayout(self)
-        layout_self.setContentsMargins(0, 0, 0, 0)
-        layout_self.addWidget(scroll)
+        self.pile_promo.addWidget(scroll)
+
+        layout_self.addWidget(self.pile_promo)
+
+        # Etat initial
+        self._changer_page_promo(self.PAGE_LISTE)
+
+    def _changer_page_promo(self, index: int):
+        """Change la page et met a jour les styles des boutons."""
+        self.pile_promo.setCurrentIndex(index)
+        self.btn_toggle_liste.setStyleSheet(style_toggle(index == self.PAGE_LISTE))
+        self.btn_toggle_nouveau.setStyleSheet(style_toggle(index == self.PAGE_NOUVEAU))
+        if index == self.PAGE_LISTE:
+            self._rafraichir_table()
 
     # ------------------------------------------------------------------ #
     #                   Section : Formulaire de creation                  #

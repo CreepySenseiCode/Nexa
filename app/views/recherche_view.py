@@ -31,45 +31,37 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QAbstractItemView,
     QSizePolicy,
+    QStackedWidget,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPixmap, QPainter, QPainterPath, QLinearGradient, QColor
 
 from viewmodels.recherche_vm import RechercheViewModel
+from viewmodels.produits_vm import ProduitsViewModel
 from views.client_card import SearchResultsWidget
-from utils.styles import style_groupe, style_scroll_area, Couleurs
+from views.fiche_produit_view import FicheProduitView
+from views.codes_promo_recherche_view import CodesPromoRechercheView
+from utils.styles import style_groupe, style_scroll_area, style_onglet, style_toggle, style_input, style_bouton, Couleurs
 
 
 class RechercheView(QWidget):
-    """Vue de l'onglet Recherche.
-
-    Permet de rechercher un client via un champ avec autocomplétion,
-    puis affiche le profil complet du client sélectionné : informations
-    personnelles, relations familiales, statistiques d'achat et graphiques.
-    """
+    """Vue de l'onglet Recherche avec toggle 3 modes : Client, Produit, Code Promo."""
 
     # --- Signaux ---
-    demande_modification = Signal(int)  # Émet le client_id pour basculer vers l'onglet Client en mode édition
+    demande_modification = Signal(int)
+
+    # Modes du toggle
+    MODE_CLIENT = 0
+    MODE_PRODUIT = 1
+    MODE_CODE_PROMO = 2
 
     def __init__(self, viewmodel=None):
-        """Initialise la vue Recherche.
-
-        Args:
-            viewmodel: Instance de RechercheViewModel. Si None, une instance
-                       est créée automatiquement.
-        """
         super().__init__()
 
-        # ViewModel
         self.viewmodel = viewmodel if viewmodel is not None else RechercheViewModel()
-
-        # État interne
-        self._client_id: int = 0  # ID du client actuellement affiché
-
-        # Symbole monétaire (récupéré une fois au démarrage)
+        self._client_id: int = 0
         self._symbole_monnaie: str = self.viewmodel.obtenir_symbole_monnaie()
 
-        # Construction de l'interface
         self._construire_ui()
         self._connecter_signaux()
 
@@ -78,27 +70,58 @@ class RechercheView(QWidget):
     # ==================================================================
 
     def _construire_ui(self):
-        """Construit l'interface complète de l'onglet Recherche."""
+        """Construit l'interface complete de l'onglet Recherche."""
         layout_principal = QVBoxLayout(self)
         layout_principal.setContentsMargins(0, 0, 0, 0)
         layout_principal.setSpacing(0)
 
-        # ============================================================
-        # ZONE RECHERCHE (cachee quand profil affiche)
-        # ============================================================
+        # === BARRE DE TOGGLE ===
+        self._barre_toggle = QWidget()
+        self._barre_toggle.setStyleSheet(f"background-color: {Couleurs.BLANC};")
+        toggle_layout = QHBoxLayout(self._barre_toggle)
+        toggle_layout.setContentsMargins(20, 15, 20, 0)
+        toggle_layout.setSpacing(10)
+
+        titre_toggle = QLabel("Recherche")
+        titre_toggle.setStyleSheet(
+            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
+        )
+        toggle_layout.addWidget(titre_toggle)
+        toggle_layout.addStretch()
+
+        self.btn_mode_client = QPushButton("Client")
+        self.btn_mode_client.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_mode_client.clicked.connect(lambda: self._changer_mode(self.MODE_CLIENT))
+
+        self.btn_mode_produit = QPushButton("Produit")
+        self.btn_mode_produit.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_mode_produit.clicked.connect(lambda: self._changer_mode(self.MODE_PRODUIT))
+
+        self.btn_mode_code = QPushButton("Code Promo")
+        self.btn_mode_code.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_mode_code.clicked.connect(lambda: self._changer_mode(self.MODE_CODE_PROMO))
+
+        toggle_layout.addWidget(self.btn_mode_client)
+        toggle_layout.addWidget(self.btn_mode_produit)
+        toggle_layout.addWidget(self.btn_mode_code)
+
+        layout_principal.addWidget(self._barre_toggle)
+
+        # === STACKED WIDGET ===
+        self._pile_modes = QStackedWidget()
+
+        # --- Page 0 : Client ---
+        self._page_client = QWidget()
+        layout_page_client = QVBoxLayout(self._page_client)
+        layout_page_client.setContentsMargins(0, 0, 0, 0)
+        layout_page_client.setSpacing(0)
+
+        # Zone recherche client
         self.widget_recherche = QWidget()
         layout_recherche = QVBoxLayout(self.widget_recherche)
-        layout_recherche.setContentsMargins(20, 20, 20, 20)
+        layout_recherche.setContentsMargins(20, 15, 20, 20)
         layout_recherche.setSpacing(15)
 
-        # Titre
-        titre = QLabel("Rechercher un client")
-        titre.setStyleSheet(
-            "font-size: 20pt; font-weight: bold; color: #2196F3; padding: 20px 0;"
-        )
-        layout_recherche.addWidget(titre)
-
-        # Barre de recherche
         self.input_recherche = QLineEdit()
         self.input_recherche.setPlaceholderText(
             "Nom, prenom, email, telephone..."
@@ -113,12 +136,10 @@ class RechercheView(QWidget):
         self.input_recherche.setFont(QFont("", 14))
         layout_recherche.addWidget(self.input_recherche)
 
-        # Widget de resultats sous forme de cards
         self._search_results = SearchResultsWidget()
         self._search_results.setVisible(False)
         layout_recherche.addWidget(self._search_results)
 
-        # Placeholder initial
         self._label_placeholder = QLabel(
             "Recherchez et selectionnez un client pour afficher son profil"
         )
@@ -129,7 +150,7 @@ class RechercheView(QWidget):
         layout_recherche.addWidget(self._label_placeholder)
 
         layout_recherche.addStretch()
-        layout_principal.addWidget(self.widget_recherche)
+        layout_page_client.addWidget(self.widget_recherche)
 
         # ============================================================
         # ZONE PROFIL (cachee par defaut)
@@ -141,7 +162,7 @@ class RechercheView(QWidget):
 
         # Bouton fermer (croix rouge)
         btn_fermer_layout = QHBoxLayout()
-        self.btn_fermer_profil = QPushButton("\u274C Fermer")
+        self.btn_fermer_profil = QPushButton("\u2190 Retour")
         self.btn_fermer_profil.setFixedSize(120, 40)
         self.btn_fermer_profil.setStyleSheet(
             "QPushButton {"
@@ -174,28 +195,113 @@ class RechercheView(QWidget):
         layout_profil_wrapper.addWidget(self._scroll_area)
 
         self.widget_profil.hide()
-        layout_principal.addWidget(self.widget_profil)
+        layout_page_client.addWidget(self.widget_profil)
 
-        # 2a. En-tête du profil
+        # Ajouter la page client au stacked widget
+        self._pile_modes.addWidget(self._page_client)
+
+        # --- Page 1 : Produit ---
+        self._construire_page_produit()
+
+        # --- Page 2 : Code Promo ---
+        self._page_code_promo = CodesPromoRechercheView()
+        self._pile_modes.addWidget(self._page_code_promo)
+
+        # Ajouter le stacked widget au layout principal
+        layout_principal.addWidget(self._pile_modes)
+
+        # Sections du profil client (ajoutees a self._layout_profil)
         self._creer_section_entete()
-
-        # 2b. Informations personnelles
         self._creer_section_infos()
-
-        # 2c. Relations
         self._creer_section_relations()
-
-        # 2d. Statistiques d'achat
         self._creer_section_stats()
-
-        # 2e. Graphiques
         self._creer_section_graphiques()
-
-        # 2f. Barre de boutons
         self._creer_barre_boutons()
-
-        # Espaceur en bas pour pousser le contenu vers le haut
         self._layout_profil.addStretch()
+
+        # Initialiser le toggle sur le mode Client
+        self._changer_mode(self.MODE_CLIENT)
+
+    # ------------------------------------------------------------------
+    # Page Produit
+    # ------------------------------------------------------------------
+
+    def _construire_page_produit(self):
+        """Construit la page de recherche de produits."""
+        self._page_produit = QWidget()
+        layout = QVBoxLayout(self._page_produit)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Widget de recherche et liste
+        self._widget_liste_produits = QWidget()
+        layout_liste = QVBoxLayout(self._widget_liste_produits)
+        layout_liste.setContentsMargins(20, 15, 20, 20)
+        layout_liste.setSpacing(15)
+
+        self._input_recherche_produit = QLineEdit()
+        self._input_recherche_produit.setPlaceholderText(
+            "Rechercher un produit par nom..."
+        )
+        self._input_recherche_produit.setStyleSheet(
+            "QLineEdit {"
+            "    min-height: 50px; font-size: 14pt; padding: 10px;"
+            "    border: 2px solid #9E9E9E; border-radius: 8px;"
+            "}"
+            "QLineEdit:focus { border: 2px solid #2196F3; }"
+        )
+        self._input_recherche_produit.setFont(QFont("", 14))
+        self._input_recherche_produit.textChanged.connect(self._on_recherche_produit)
+        layout_liste.addWidget(self._input_recherche_produit)
+
+        self._table_produits = QTableWidget()
+        self._table_produits.setColumnCount(4)
+        self._table_produits.setHorizontalHeaderLabels(
+            ["Nom", "Categorie", "Prix", "Stock"]
+        )
+        self._table_produits.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table_produits.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table_produits.verticalHeader().setVisible(False)
+        self._table_produits.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
+        )
+        self._table_produits.horizontalHeader().setStretchLastSection(True)
+        self._table_produits.setAlternatingRowColors(True)
+        self._table_produits.setStyleSheet(
+            "QTableWidget { border: 1px solid #E0E0E0; border-radius: 8px; }"
+            "QTableWidget::item { padding: 8px; min-height: 40px; }"
+            "QHeaderView::section { background-color: #F5F5F5; padding: 10px;"
+            "    font-weight: bold; border: none; border-bottom: 2px solid #E0E0E0; }"
+        )
+        self._table_produits.doubleClicked.connect(self._on_produit_double_clic)
+        layout_liste.addWidget(self._table_produits)
+
+        layout.addWidget(self._widget_liste_produits)
+
+        # Fiche produit (cachee par defaut)
+        self._produits_vm = ProduitsViewModel()
+        self._fiche_produit = FicheProduitView(viewmodel=self._produits_vm)
+        self._fiche_produit.retour_demande.connect(self._retour_liste_produits)
+        self._fiche_produit.hide()
+        layout.addWidget(self._fiche_produit)
+
+        self._pile_modes.addWidget(self._page_produit)
+        self._produits_ids = []
+
+    # ------------------------------------------------------------------
+    # Toggle mode
+    # ------------------------------------------------------------------
+
+    def _changer_mode(self, mode: int):
+        """Change le mode du toggle (Client/Produit/Code Promo)."""
+        self._pile_modes.setCurrentIndex(mode)
+        boutons = [self.btn_mode_client, self.btn_mode_produit, self.btn_mode_code]
+        for i, btn in enumerate(boutons):
+            btn.setStyleSheet(style_toggle(i == mode))
+
+        # Rafraichir la table produits quand on passe en mode produit
+        if mode == self.MODE_PRODUIT:
+            self._rafraichir_table_produits(self._input_recherche_produit.text())
 
     # ------------------------------------------------------------------
     # Section 2a : En-tête du profil
@@ -1067,7 +1173,61 @@ class RechercheView(QWidget):
         return carte
 
     # ==================================================================
-    # Actions
+    # Actions - Produits
+    # ==================================================================
+
+    def _on_recherche_produit(self, texte: str):
+        """Filtre la liste des produits selon le terme saisi."""
+        self._rafraichir_table_produits(texte)
+
+    def _rafraichir_table_produits(self, terme: str = ""):
+        """Remplit la table des produits avec les resultats filtres."""
+        produits = self.viewmodel.rechercher_produits(terme)
+        self._table_produits.setRowCount(len(produits))
+        symbole = self._symbole_monnaie
+
+        for i, p in enumerate(produits):
+            self._table_produits.setItem(
+                i, 0, QTableWidgetItem(p.get('nom', ''))
+            )
+            self._table_produits.setItem(
+                i, 1, QTableWidgetItem(p.get('categorie_nom', 'Sans categorie'))
+            )
+
+            item_prix = QTableWidgetItem(f"{p.get('prix', 0):.2f} {symbole}")
+            item_prix.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
+            self._table_produits.setItem(i, 2, item_prix)
+
+            stock = p.get('stock', 0) or 0
+            item_stock = QTableWidgetItem(str(stock))
+            item_stock.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if stock == 0:
+                item_stock.setForeground(QColor(Couleurs.DANGER))
+            elif stock <= 10:
+                item_stock.setForeground(QColor(Couleurs.AVERTISSEMENT))
+            self._table_produits.setItem(i, 3, item_stock)
+
+        self._produits_ids = [p.get('id') for p in produits]
+
+    def _on_produit_double_clic(self, index):
+        """Ouvre la fiche produit quand on double-clique sur une ligne."""
+        row = index.row()
+        if 0 <= row < len(self._produits_ids):
+            produit_id = self._produits_ids[row]
+            if produit_id:
+                self._fiche_produit.charger_produit(produit_id)
+                self._widget_liste_produits.hide()
+                self._fiche_produit.show()
+
+    def _retour_liste_produits(self):
+        """Revient a la liste des produits depuis la fiche."""
+        self._fiche_produit.hide()
+        self._widget_liste_produits.show()
+
+    # ==================================================================
+    # Actions - Client
     # ==================================================================
 
     def _naviguer_vers_client(self, client_id: int):

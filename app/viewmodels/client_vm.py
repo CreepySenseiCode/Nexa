@@ -19,6 +19,23 @@ class ClientViewModel(QObject):
         self.model = ClientModel()
         self._client_actuel_id: Optional[int] = None
 
+    def lister_clients(self) -> list[dict]:
+        """Retourne tous les clients."""
+        return self.model.lister_clients()
+
+    def rechercher_clients(self, terme: str) -> list[dict]:
+        """Recherche des clients par nom/prenom."""
+        if not terme or len(terme) < 1:
+            return self.lister_clients()
+        tous = self.model.lister_clients()
+        terme_lower = terme.lower()
+        return [
+            c for c in tous
+            if terme_lower in (c.get('nom', '') or '').lower()
+            or terme_lower in (c.get('prenom', '') or '').lower()
+            or terme_lower in (c.get('email', '') or '').lower()
+        ]
+
     def charger_champs_actifs(self) -> list[dict]:
         """Charge et retourne les champs clients actifs."""
         champs = self.model.obtenir_champs_actifs()

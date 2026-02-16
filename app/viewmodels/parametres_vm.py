@@ -1,7 +1,11 @@
 """ViewModel pour les parametres."""
+import logging
+
 from PySide6.QtCore import QObject, Signal
 from models.parametres import ParametresModel
 from models.attribut_produit import AttributProduitModel
+
+logger = logging.getLogger(__name__)
 
 
 class ParametresViewModel(QObject):
@@ -45,14 +49,26 @@ class ParametresViewModel(QObject):
         return self.attribut_model.lister_attributs_globaux()
 
     def ajouter_attribut(self, nom: str) -> int:
-        """Ajoute un attribut global. Retourne l'ID ou leve une exception."""
-        result = self.attribut_model.ajouter_attribut(nom)
-        self.attributs_modifies.emit()
-        return result
+        """Ajoute un attribut global. Retourne l'ID ou -1 en cas d'erreur."""
+        try:
+            result = self.attribut_model.ajouter_attribut(nom)
+            logger.debug("Attribut '%s' ajoute (id=%s)", nom, result)
+            self.attributs_modifies.emit()
+            return result
+        except Exception as e:
+            logger.error("Echec ajout attribut '%s' : %s", nom, e)
+            self.erreur.emit(f"Impossible d'ajouter l'attribut : {e}")
+            return -1
 
     def supprimer_attribut(self, nom: str) -> bool:
         """Supprime un attribut global."""
-        result = self.attribut_model.supprimer_attribut(nom)
-        if result:
-            self.attributs_modifies.emit()
-        return result
+        try:
+            result = self.attribut_model.supprimer_attribut(nom)
+            if result:
+                logger.debug("Attribut '%s' supprime", nom)
+                self.attributs_modifies.emit()
+            return result
+        except Exception as e:
+            logger.error("Echec suppression attribut '%s' : %s", nom, e)
+            self.erreur.emit(f"Impossible de supprimer l'attribut : {e}")
+            return False

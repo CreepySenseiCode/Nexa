@@ -1,8 +1,9 @@
-"""ViewModel pour la recherche de clients."""
+"""ViewModel pour la recherche de clients et produits."""
 from PySide6.QtCore import QObject, Signal
 from models.client import ClientModel
 from models.vente import VenteModel
 from models.parametres import ParametresModel
+from models.produit import ProduitModel
 from typing import Optional
 
 
@@ -18,6 +19,7 @@ class RechercheViewModel(QObject):
         self.client_model = ClientModel()
         self.vente_model = VenteModel()
         self.params_model = ParametresModel()
+        self.produit_model = ProduitModel()
 
     def rechercher_clients(self, terme: str) -> list[dict]:
         """Recherche des clients. Retourne la liste des clients correspondants."""
@@ -63,3 +65,11 @@ class RechercheViewModel(QObject):
     def obtenir_repartition_categories(self, client_id: int) -> list[dict]:
         """Retourne la repartition par categorie pour un client."""
         return self.vente_model.obtenir_repartition_categories(client_id)
+
+    def rechercher_produits(self, terme: str) -> list[dict]:
+        """Recherche des produits par nom."""
+        if not terme or len(terme) < 1:
+            return self.produit_model.lister_produits()
+        tous = self.produit_model.lister_produits()
+        terme_lower = terme.lower()
+        return [p for p in tous if terme_lower in (p.get('nom', '') or '').lower()]

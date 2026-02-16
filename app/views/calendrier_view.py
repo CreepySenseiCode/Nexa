@@ -7,14 +7,19 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QGridLayout, QScrollArea,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from datetime import datetime, timedelta
 import calendar
 
+from utils.styles import style_bouton, Couleurs
+
 
 class CalendrierView(QWidget):
     """Onglet Calendrier style Apple Calendar."""
+
+    # Signal emis avec (date_debut, date_fin) pour voir les stats
+    voir_stats_periode = Signal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -31,23 +36,6 @@ class CalendrierView(QWidget):
         # === EN-TETE ===
         header_layout = QHBoxLayout()
 
-        btn_today = QPushButton("Aujourd'hui")
-        btn_today.setStyleSheet(
-            "QPushButton {"
-            "    background-color: white;"
-            "    border: 2px solid #9E9E9E;"
-            "    border-radius: 8px;"
-            "    padding: 8px 16px;"
-            "    font-size: 12pt;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: #E3F2FD;"
-            "    border-color: #2196F3;"
-            "}"
-        )
-        btn_today.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_today.clicked.connect(self._aller_aujourdhui)
-        header_layout.addWidget(btn_today)
 
         header_layout.addStretch()
 
@@ -126,6 +114,13 @@ class CalendrierView(QWidget):
         header_layout.addWidget(self._btn_mois)
         header_layout.addWidget(self._btn_semaine)
         header_layout.addWidget(self._btn_jour)
+
+        # Bouton Statistiques
+        btn_stats = QPushButton("Voir statistiques")
+        btn_stats.setStyleSheet(style_bouton(Couleurs.SUCCES, taille="petit"))
+        btn_stats.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_stats.clicked.connect(self._voir_stats_periode)
+        header_layout.addWidget(btn_stats)
 
         main_layout.addLayout(header_layout)
 
@@ -230,6 +225,24 @@ class CalendrierView(QWidget):
         self._maj_label_titre()
         self._rafraichir_vue()
 
+    def _voir_stats_periode(self):
+        """Emet le signal pour voir les statistiques de la periode affichee."""
+        if self._vue_courante == "mois":
+            debut = datetime(self.current_date.year, self.current_date.month, 1)
+            if self.current_date.month == 12:
+                fin = datetime(self.current_date.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                fin = datetime(self.current_date.year, self.current_date.month + 1, 1) - timedelta(days=1)
+        elif self._vue_courante == "semaine":
+            debut = self.current_date - timedelta(days=self.current_date.weekday())
+            fin = debut + timedelta(days=6)
+        else:
+            debut = self.current_date
+            fin = self.current_date
+        self.voir_stats_periode.emit(
+            debut.strftime('%Y-%m-%d'), fin.strftime('%Y-%m-%d')
+        )
+
     def _rafraichir_vue(self):
         """Rafraichit la vue courante."""
         if self._vue_courante == "mois":
@@ -290,17 +303,28 @@ class CalendrierView(QWidget):
         cell.setFrameShape(QFrame.Shape.Box)
         cell.setMinimumHeight(100)
 
+        now = datetime.now()
         is_today = (
-            day == datetime.now().day
-            and self.current_date.month == datetime.now().month
-            and self.current_date.year == datetime.now().year
+            day == now.day
+            and self.current_date.month == now.month
+            and self.current_date.year == now.year
         )
+        cell_date = datetime(self.current_date.year, self.current_date.month, day)
+        is_past = cell_date.date() < now.date()
 
         if is_today:
             cell.setStyleSheet(
                 "QFrame {"
                 "    background-color: #E3F2FD;"
                 "    border: 3px solid #2196F3;"
+                "    border-radius: 8px;"
+                "}"
+            )
+        elif is_past:
+            cell.setStyleSheet(
+                "QFrame {"
+                "    background-color: rgba(240, 240, 240, 0.5);"
+                "    border: 2px solid #E0E0E0;"
                 "    border-radius: 8px;"
                 "}"
             )
@@ -320,7 +344,12 @@ class CalendrierView(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         day_label = QLabel(str(day))
-        color = "#2196F3" if is_today else "#333"
+        if is_today:
+            color = "#2196F3"
+        elif is_past:
+            color = "rgba(100, 100, 100, 0.6)"
+        else:
+            color = "#333"
         day_label.setStyleSheet(
             f"font-size: 14pt; font-weight: bold; color: {color}; padding: 5px;"
         )

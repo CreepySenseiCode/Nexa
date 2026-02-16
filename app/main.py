@@ -39,6 +39,7 @@ from views.emailing_view import EmailingView
 from views.boite_reception_view import BoiteReceptionView
 from views.mails_enregistres_view import MailsEnregistresView
 from views.historique_mails_view import HistoriqueMailsView
+from views.emails_unifie_view import EmailsUnifieView
 
 
 def main():
@@ -93,6 +94,7 @@ def main():
         vue_boite_reception = BoiteReceptionView()
         vue_mails_enregistres = MailsEnregistresView()
         vue_historique_mails = HistoriqueMailsView()
+        vue_emails_unifie = EmailsUnifieView()
 
         # --- Insertion des vues dans la fenêtre principale ---
         logger.info("Configuration des onglets...")
@@ -105,10 +107,15 @@ def main():
         fenetre.definir_page(3, vue_codes_promo_recherche)
         fenetre.definir_page(4, vue_aide)
         fenetre.definir_page(5, vue_emailing)
-        fenetre.definir_page(6, vue_boite_reception)
+        fenetre.definir_page(6, vue_emails_unifie)
         fenetre.definir_page(7, vue_statistiques)
         fenetre.definir_page(8, vue_mails_enregistres)
         fenetre.definir_page(9, vue_historique_mails)
+
+        # Connexion du bouton "+" de la vue unifiee vers l'onglet Emailing
+        vue_emails_unifie.nouveau_mail_demande.connect(
+            lambda: fenetre._changer_page(5)
+        )
         fenetre.definir_page(10, vue_calendrier)
         fenetre.definir_page(11, vue_produits)
         fenetre.definir_page(12, vue_codes_promo_creation)

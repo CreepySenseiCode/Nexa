@@ -5,12 +5,12 @@ Vue Bo\u00eete de r\u00e9ception - Affiche les emails re\u00e7us.
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QLineEdit, QComboBox,
-    QHeaderView, QMessageBox,
+    QHeaderView, QMessageBox, QRadioButton, QButtonGroup,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
-from utils.styles import style_bouton, style_scroll_area, Couleurs
+from utils.styles import style_bouton, style_input, Couleurs
 from viewmodels.boite_reception_vm import BoiteReceptionViewModel
 
 
@@ -32,38 +32,42 @@ class BoiteReceptionView(QWidget):
         # Header
         header_layout = QHBoxLayout()
 
-        titre = QLabel("Bo\u00eete de r\u00e9ception")
-        titre.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        titre.setStyleSheet("color: #1976D2; padding: 10px;")
-        header_layout.addWidget(titre)
 
-        # Sélecteur d'adresse email
+        # Filtre par adresse : radio buttons
+        radio_style = (
+            "QRadioButton {"
+            f"    font-size: 12pt; color: {Couleurs.TEXTE}; spacing: 6px;"
+            "}"
+            "QRadioButton::indicator {"
+            "    width: 18px; height: 18px;"
+            "}"
+        )
+        self.radio_toutes = QRadioButton("Toutes les boites")
+        self.radio_toutes.setStyleSheet(radio_style)
+        self.radio_toutes.setChecked(True)
+        self.radio_toutes.toggled.connect(self._on_radio_changed)
+
+        self.radio_une = QRadioButton("Une seule")
+        self.radio_une.setStyleSheet(radio_style)
+        self.radio_une.toggled.connect(self._on_radio_changed)
+
+        self.groupe_radio = QButtonGroup(self)
+        self.groupe_radio.addButton(self.radio_toutes)
+        self.groupe_radio.addButton(self.radio_une)
+
+        header_layout.addWidget(self.radio_toutes)
+        header_layout.addWidget(self.radio_une)
+
         self.combo_adresse = QComboBox()
         self.combo_adresse.addItems([
-            "Toutes les boîtes",
             "contact@nexa.fr",
             "support@nexa.fr",
             "commercial@nexa.fr",
             "direction@nexa.fr",
         ])
-        self.combo_adresse.setStyleSheet(
-            "QComboBox {"
-            "    min-height: 40px;"
-            "    font-size: 11pt;"
-            "    padding: 5px 15px;"
-            "    border: 2px solid #E0E0E0;"
-            "    border-radius: 8px;"
-            "    background-color: white;"
-            "    min-width: 220px;"
-            "}"
-            "QComboBox:hover {"
-            "    border: 2px solid #2196F3;"
-            "}"
-            "QComboBox::drop-down {"
-            "    border: none;"
-            "    padding-right: 10px;"
-            "}"
-        )
+        self.combo_adresse.setStyleSheet(style_input())
+        self.combo_adresse.setMinimumWidth(220)
+        self.combo_adresse.setEnabled(False)
         self.combo_adresse.currentIndexChanged.connect(self._on_adresse_changed)
         header_layout.addWidget(self.combo_adresse)
 
@@ -150,13 +154,27 @@ class BoiteReceptionView(QWidget):
         self.setLayout(layout_principal)
         self.setStyleSheet("background-color: #F5F5F5;")
 
-    def _on_adresse_changed(self):
-        """Recharge les emails quand l'adresse s\u00e9lectionn\u00e9e change."""
+    def _on_radio_changed(self):
+        """Active/desactive et masque le combo selon le radio selectionne."""
+        if self.radio_toutes.isChecked():
+            self.combo_adresse.setEnabled(False)
+            self.combo_adresse.hide()
+        else:
+            self.combo_adresse.setEnabled(True)
+            self.combo_adresse.show()
         self._charger_emails()
 
+    def _on_adresse_changed(self):
+        """Recharge les emails quand l'adresse selectionnee change."""
+        if self.radio_une.isChecked():
+            self._charger_emails()
+
     def _charger_emails(self):
-        """Charge les emails depuis la base de donn\u00e9es."""
-        adresse = self.combo_adresse.currentText()
+        """Charge les emails depuis la base de donnees."""
+        if self.radio_toutes.isChecked():
+            adresse = "Toutes les bo\u00eetes"
+        else:
+            adresse = self.combo_adresse.currentText()
         emails = self.viewmodel.charger_emails(adresse)
 
         self.table.setRowCount(len(emails))
@@ -206,8 +224,8 @@ class BoiteReceptionView(QWidget):
         # Mettre a jour les stats
         nb_total = len(emails)
         nb_non_lus = sum(1 for e in emails if not e.get("lu"))
-        adresse_txt = self.combo_adresse.currentText()
-        boite_info = f" ({adresse_txt})" if adresse_txt != "Toutes les bo\u00eetes" else ""
+        adresse_txt = adresse
+        boite_info = f" ({adresse_txt})" if not self.radio_toutes.isChecked() else ""
         self.label_stats.setText(
             f"Total : {nb_total} email{'s' if nb_total > 1 else ''}{boite_info} | "
             f"Non lus : {nb_non_lus}"

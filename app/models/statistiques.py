@@ -35,6 +35,14 @@ class StatistiquesModel(BaseModel):
             ca_total = row['ca_total'] if row else 0
             clients_actifs = row['clients_actifs'] if row else 0
             panier_moyen = ca_total / nb_ventes if nb_ventes > 0 else 0
+
+            logger.info(
+                "KPIs pour %s -> %s : %d ventes, %.2f EUR CA, "
+                "%d clients actifs, %.2f EUR panier moyen",
+                date_debut, date_fin, nb_ventes, ca_total,
+                clients_actifs, panier_moyen,
+            )
+
             return {
                 'nb_ventes': nb_ventes,
                 'ca_total': ca_total,
@@ -42,7 +50,7 @@ class StatistiquesModel(BaseModel):
                 'panier_moyen': panier_moyen,
             }
         except sqlite3.Error as e:
-            logger.error("Erreur lors du calcul des KPIs : %s", e)
+            logger.error("Erreur lors du calcul des KPIs : %s", e, exc_info=True)
             return {'nb_ventes': 0, 'ca_total': 0, 'clients_actifs': 0, 'panier_moyen': 0}
 
     def top_clients(self, date_debut: str, date_fin: str, limite: int = 5) -> list[dict]:

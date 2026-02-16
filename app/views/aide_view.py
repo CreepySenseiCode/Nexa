@@ -19,11 +19,6 @@ class AideView(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Titre
-        title = QLabel("Centre d'aide")
-        title.setStyleSheet(
-            "font-size: 20pt; font-weight: bold; color: #2196F3; padding: 20px;"
-        )
-        main_layout.addWidget(title)
 
         # ScrollArea
         scroll = QScrollArea()

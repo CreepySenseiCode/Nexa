@@ -33,10 +33,6 @@ class MailsEnregistresView(QWidget):
         layout_gauche = QVBoxLayout()
         layout_gauche.setSpacing(15)
 
-        titre = QLabel("Mails enregistr\u00e9s")
-        titre.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        titre.setStyleSheet("color: #1976D2; padding: 10px;")
-        layout_gauche.addWidget(titre)
 
         # Boutons onglets
         tabs_layout = QHBoxLayout()

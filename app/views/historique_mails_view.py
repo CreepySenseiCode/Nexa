@@ -32,10 +32,6 @@ class HistoriqueMailsView(QWidget):
         # Header
         header_layout = QHBoxLayout()
 
-        titre = QLabel("Historique des emails")
-        titre.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        titre.setStyleSheet("color: #1976D2; padding: 10px;")
-        header_layout.addWidget(titre)
 
         header_layout.addStretch()
 

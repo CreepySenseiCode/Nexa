@@ -1,5 +1,7 @@
 """Vue pour l'onglet Statistiques avec donnees reelles et graphiques Plotly."""
 
+import logging
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QComboBox,
@@ -13,6 +15,8 @@ from collections import defaultdict
 
 from utils.styles import style_scroll_area, Couleurs
 from viewmodels.stats_vm import StatsViewModel
+
+logger = logging.getLogger(__name__)
 
 
 class StatistiquesView(QWidget):
@@ -162,16 +166,6 @@ class StatistiquesView(QWidget):
         )
         periode_layout.addWidget(self.btn_next)
 
-        # Bouton Aujourd'hui
-        self.btn_today = QPushButton("Aujourd'hui")
-        self.btn_today.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_today.setStyleSheet(
-            "QPushButton { background-color: #4CAF50; color: white; "
-            "border: none; border-radius: 6px; padding: 8px 16px; "
-            "font-size: 11pt; font-weight: 600; min-height: 36px; }"
-            "QPushButton:hover { background-color: #45A049; }"
-        )
-        periode_layout.addWidget(self.btn_today)
 
         header.addWidget(periode_group)
 
@@ -248,7 +242,6 @@ class StatistiquesView(QWidget):
         self.combo_periode.currentIndexChanged.connect(self._on_periode_changed)
         self.btn_prev.clicked.connect(self._periode_precedente)
         self.btn_next.clicked.connect(self._periode_suivante)
-        self.btn_today.clicked.connect(self._aller_aujourdhui)
 
     # ------------------------------------------------------------------ #
     #                       Navigation de periode                         #
@@ -443,13 +436,37 @@ class StatistiquesView(QWidget):
 
         return date_debut, date_fin
 
+    def charger_periode(self, date_debut: str, date_fin: str):
+        """Charge les stats pour une periode externe (ex: depuis le calendrier)."""
+        logger.info("Chargement stats externe : %s -> %s", date_debut, date_fin)
+        try:
+            donnees = self.viewmodel.charger_statistiques(date_debut, date_fin)
+            if not donnees:
+                return
+            kpis = donnees['kpis']
+            self._kpi_labels["Chiffre d'affaires"].setText(
+                f"{kpis['ca_total']:.2f} EUR"
+            )
+            self._kpi_labels["Nombre de ventes"].setText(str(kpis['nb_ventes']))
+            self._kpi_labels["Clients actifs"].setText(str(kpis['clients_actifs']))
+            self._kpi_labels["Panier moyen"].setText(
+                f"{kpis['panier_moyen']:.2f} EUR"
+            )
+            self._maj_section_top(self._top_clients_layout, donnees['top_clients'], "client")
+            self._maj_section_top(self._top_produits_layout, donnees['top_produits'], "produit")
+            self._generer_graphiques(donnees['ventes'], donnees['top_produits'])
+        except Exception as e:
+            logger.error("Erreur chargement stats externe : %s", e, exc_info=True)
+
     def _charger_stats(self):
         """Charge les statistiques reelles depuis la base de donnees."""
         try:
             date_debut, date_fin = self._obtenir_dates_periode()
+            logger.info("Chargement stats : %s -> %s", date_debut, date_fin)
             donnees = self.viewmodel.charger_statistiques(date_debut, date_fin)
 
             if not donnees:
+                logger.warning("Aucune donnee retournee par le ViewModel")
                 return
 
             # --- KPIs ---
@@ -470,8 +487,19 @@ class StatistiquesView(QWidget):
             # --- Graphiques Plotly ---
             self._generer_graphiques(donnees['ventes'], donnees['top_produits'])
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("Erreur lors du chargement des statistiques : %s", e, exc_info=True)
+            self.chart_ca.setHtml(
+                "<html><body style='text-align:center;padding-top:150px;"
+                "color:#F44336;font-family:sans-serif;'>"
+                "<h3>Erreur de chargement</h3>"
+                f"<p>{str(e)}</p></body></html>"
+            )
+            self.chart_produits.setHtml(
+                "<html><body style='text-align:center;padding-top:150px;"
+                "color:#F44336;font-family:sans-serif;'>"
+                "<h3>Erreur de chargement</h3></body></html>"
+            )
 
     def _maj_section_top(
         self, layout: QVBoxLayout, items: list[dict], type_item: str
@@ -516,54 +544,121 @@ class StatistiquesView(QWidget):
 
     def _generer_graphiques(self, ventes: list, top_produits: list):
         """Genere les graphiques Plotly avec les donnees reelles."""
+        logger.info("=== DÉBUT GÉNÉRATION GRAPHIQUES ===")
+        logger.info(f"Ventes reçues : {len(ventes)}")
+        logger.info(f"Top produits reçus : {len(top_produits)}")
+
+        if ventes:
+            logger.info(f"Première vente : {ventes[0]}")
+        else:
+            logger.info("AUCUNE vente dans la liste")
+
+        _html_vide = (
+            "<html><body style='text-align:center;padding-top:150px;"
+            "color:#999;font-family:sans-serif;'>"
+            "<h3>Aucune donnee disponible</h3>"
+            "<p>Aucune vente enregistree pour cette periode.</p></body></html>"
+        )
+
         try:
             import plotly.graph_objects as go
+            logger.info(f"Plotly importé avec succès, version : {go.__version__ if hasattr(go, '__version__') else 'inconnue'}")
+        except ImportError as e:
+            logger.error(f"Plotly non installé : {e}")
+            _html_err = (
+                "<html><body style='text-align:center;padding-top:150px;"
+                "color:#999;font-family:sans-serif;'>"
+                "<h3>Plotly non installe</h3>"
+                "<p>pip install plotly</p></body></html>"
+            )
+            self.chart_ca.setHtml(_html_err)
+            self.chart_produits.setHtml(_html_err)
+            return
+
+        try:
+            from utils.plotly_render import plotly_to_html
+            logger.info("plotly_to_html importé avec succès")
 
             # --- Graphique 1 : Evolution du CA ---
-            ventes_par_jour = defaultdict(float)
-            for vente in ventes:
-                date_str = str(vente.get('date_vente', ''))[:10]
-                ventes_par_jour[date_str] += vente.get('prix_total', 0)
+            logger.info("Generation graphique CA : %d ventes", len(ventes))
 
-            dates = sorted(ventes_par_jour.keys())
-            montants = [ventes_par_jour[d] for d in dates]
+            if not ventes:
+                logger.info("Aucune vente pour le graphique CA")
+                self.chart_ca.setHtml(_html_vide)
+            else:
+                ventes_par_jour = defaultdict(float)
+                for vente in ventes:
+                    date_str = str(vente.get('date_vente', ''))[:10]
+                    ventes_par_jour[date_str] += vente.get('prix_total', 0)
 
-            fig1 = go.Figure()
-            fig1.add_trace(go.Scatter(
-                x=dates,
-                y=montants,
-                mode='lines+markers',
-                name='CA journalier',
-                line=dict(color='#2196F3', width=3),
-                marker=dict(size=8),
-                fill='tozeroy',
-                fillcolor='rgba(33, 150, 243, 0.1)',
-            ))
-            fig1.update_layout(
-                title="Evolution du chiffre d'affaires",
-                xaxis_title="Date",
-                yaxis_title="CA (EUR)",
-                hovermode='x unified',
-                template='plotly_white',
-                height=380,
-                margin=dict(l=50, r=20, t=50, b=40),
-            )
+                dates = sorted(ventes_par_jour.keys())
+                montants = [ventes_par_jour[d] for d in dates]
 
-            from utils.plotly_render import plotly_to_html
-            self.chart_ca.setHtml(plotly_to_html(fig1))
+                logger.info("Graphique CA : %d jours, total %.2f EUR",
+                            len(dates), sum(montants))
+
+                logger.info("Création de la figure Plotly CA...")
+                fig1 = go.Figure()
+                logger.info(f"Figure CA créée : {type(fig1)}")
+
+                logger.info("Ajout de la trace Scatter...")
+                fig1.add_trace(go.Scatter(
+                    x=dates,
+                    y=montants,
+                    mode='lines+markers',
+                    name='CA journalier',
+                    line=dict(color='#2196F3', width=3),
+                    marker=dict(size=8),
+                    fill='tozeroy',
+                    fillcolor='rgba(33, 150, 243, 0.1)',
+                ))
+                logger.info("Trace Scatter ajoutée")
+
+                logger.info("Mise à jour du layout...")
+                fig1.update_layout(
+                    title="Evolution du chiffre d'affaires",
+                    xaxis_title="Date",
+                    yaxis_title="CA (EUR)",
+                    hovermode='x unified',
+                    template='plotly_white',
+                    height=380,
+                    margin=dict(l=50, r=20, t=50, b=40),
+                )
+                logger.info("Layout mis à jour")
+
+                logger.info("Conversion en HTML...")
+                html_ca = plotly_to_html(fig1)
+                logger.info(f"HTML généré : {len(html_ca)} caractères")
+                logger.info(f"Début HTML CA : {html_ca[:300]}")
+
+                logger.info("Affichage dans QWebEngineView...")
+                self.chart_ca.setHtml(html_ca)
+                logger.info("✓ HTML CA chargé dans QWebEngineView")
 
             # --- Graphique 2 : Top produits ---
+            logger.info("Generation graphique produits : %d produits",
+                        len(top_produits))
+
             if top_produits:
                 noms = [p.get('nom', '') for p in top_produits]
                 ca = [p.get('total_ca', 0) for p in top_produits]
+                logger.info(f"Noms produits : {noms}")
+                logger.info(f"CA produits : {ca}")
 
+                logger.info("Création de la figure Plotly Produits...")
                 fig2 = go.Figure()
+                logger.info(f"Figure Produits créée : {type(fig2)}")
+
+                logger.info("Ajout de la trace Bar...")
                 fig2.add_trace(go.Bar(
                     x=ca,
                     y=noms,
                     orientation='h',
                     marker=dict(color='#4CAF50'),
                 ))
+                logger.info("Trace Bar ajoutée")
+
+                logger.info("Mise à jour du layout produits...")
                 fig2.update_layout(
                     title="Top produits par CA",
                     xaxis_title="CA (EUR)",
@@ -571,23 +666,38 @@ class StatistiquesView(QWidget):
                     height=380,
                     margin=dict(l=120, r=20, t=50, b=40),
                 )
-                self.chart_produits.setHtml(plotly_to_html(fig2))
-            else:
-                self.chart_produits.setHtml(
-                    "<html><body style='text-align:center;padding-top:150px;"
-                    "color:#999;font-family:sans-serif;'>"
-                    "<h3>Aucune donnee disponible</h3></body></html>"
-                )
+                logger.info("Layout produits mis à jour")
 
-        except ImportError:
-            self.chart_ca.setHtml(
+                logger.info("Conversion en HTML produits...")
+                html_produits = plotly_to_html(fig2)
+                logger.info(f"HTML produits généré : {len(html_produits)} caractères")
+                logger.info(f"Début HTML Produits : {html_produits[:300]}")
+
+                logger.info("Affichage dans QWebEngineView produits...")
+                self.chart_produits.setHtml(html_produits)
+                logger.info("✓ HTML Produits chargé dans QWebEngineView")
+            else:
+                logger.info("Aucun produit pour le graphique top produits")
+                self.chart_produits.setHtml(_html_vide)
+
+            logger.info("=== FIN GÉNÉRATION GRAPHIQUES ===")
+
+        except Exception as e:
+            logger.error(f"ERREUR CRITIQUE lors de la génération des graphiques : {e}", exc_info=True)
+            _html_err = (
                 "<html><body style='text-align:center;padding-top:150px;"
-                "color:#999;font-family:sans-serif;'>"
-                "<h3>Plotly non installe</h3>"
-                "<p>pip install plotly</p></body></html>"
+                "color:#F44336;font-family:sans-serif;'>"
+                f"<h3>Erreur graphique</h3><p>{e}</p></body></html>"
             )
-            self.chart_produits.setHtml(
+            self.chart_ca.setHtml(_html_err)
+            self.chart_produits.setHtml(_html_err)
+
+        except Exception as e:
+            logger.error("Erreur generation graphiques : %s", e, exc_info=True)
+            _html_err = (
                 "<html><body style='text-align:center;padding-top:150px;"
-                "color:#999;font-family:sans-serif;'>"
-                "<h3>Plotly non installe</h3></body></html>"
+                "color:#F44336;font-family:sans-serif;'>"
+                f"<h3>Erreur graphique</h3><p>{e}</p></body></html>"
             )
+            self.chart_ca.setHtml(_html_err)
+            self.chart_produits.setHtml(_html_err)

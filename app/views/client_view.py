@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QGridLayout, QLabel, QLineEdit, QDateEdit, QComboBox, QCheckBox, QSpinBox,
     QGroupBox, QPushButton, QTextEdit, QScrollArea, QProgressBar,
     QMessageBox, QFrame, QDialog, QDialogButtonBox, QSizePolicy,
-    QFileDialog, QAbstractSpinBox)
+    QFileDialog, QAbstractSpinBox, QStackedWidget,
+    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView)
 from PySide6.QtCore import Qt, QDate, Signal
 from PySide6.QtGui import QFont, QPixmap, QPainter, QPainterPath, QPen, QLinearGradient, QColor
 
@@ -21,6 +22,7 @@ from models.centre_interet import CentreInteretModel
 from viewmodels.client_vm import ClientViewModel
 from utils.formatters import calculer_age
 from utils.validators import valider_email
+from utils.styles import style_toggle, style_input, style_bouton, Couleurs
 
 
 # ============================================================================
@@ -160,13 +162,123 @@ class ClientView(QWidget):
     # Construction de l'interface
     # ==================================================================
 
+    # Pages du stacked widget
+    PAGE_LISTE = 0
+    PAGE_CREATION = 1
+
     def _construire_ui(self):
-        """Construit l'interface complete du formulaire client."""
+        """Construit l'interface complete avec toggle Liste/Creation."""
 
         # --- Layout principal ---
         layout_principal = QVBoxLayout(self)
         layout_principal.setContentsMargins(0, 0, 0, 0)
         layout_principal.setSpacing(0)
+
+        # === BARRE DE TOGGLE ===
+        barre_toggle = QWidget()
+        barre_toggle.setStyleSheet(f"background-color: {Couleurs.BLANC};")
+        toggle_layout = QHBoxLayout(barre_toggle)
+        toggle_layout.setContentsMargins(30, 15, 30, 0)
+        toggle_layout.setSpacing(10)
+
+        titre_page = QLabel("Clients")
+        titre_page.setStyleSheet(
+            f"font-size: 20pt; font-weight: bold; color: {Couleurs.PRIMAIRE};"
+        )
+        toggle_layout.addWidget(titre_page)
+        toggle_layout.addStretch()
+
+        self.btn_toggle_liste = QPushButton("Liste")
+        self.btn_toggle_liste.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_toggle_liste.clicked.connect(lambda: self._changer_page_client(self.PAGE_LISTE))
+
+        self.btn_toggle_creation = QPushButton("Nouveau client")
+        self.btn_toggle_creation.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_toggle_creation.clicked.connect(lambda: self._changer_page_client(self.PAGE_CREATION))
+
+        toggle_layout.addWidget(self.btn_toggle_liste)
+        toggle_layout.addWidget(self.btn_toggle_creation)
+
+        layout_principal.addWidget(barre_toggle)
+
+        # === STACKED WIDGET ===
+        self.pile_client = QStackedWidget()
+
+        # Page 0 : Liste des clients
+        self.pile_client.addWidget(self._creer_page_liste_clients())
+
+        # Page 1 : Formulaire creation/edition
+        self.pile_client.addWidget(self._creer_page_formulaire())
+
+        layout_principal.addWidget(self.pile_client)
+
+        # Etat initial
+        self._changer_page_client(self.PAGE_LISTE)
+
+    def _changer_page_client(self, index: int):
+        """Change la page affichee et met a jour les boutons."""
+        self.pile_client.setCurrentIndex(index)
+        self.btn_toggle_liste.setStyleSheet(style_toggle(index == self.PAGE_LISTE))
+        self.btn_toggle_creation.setStyleSheet(style_toggle(index == self.PAGE_CREATION))
+        if index == self.PAGE_LISTE:
+            self._charger_liste_clients()
+
+    def _creer_page_liste_clients(self) -> QWidget:
+        """Cree la page liste des clients avec recherche et cartes."""
+        page = QWidget()
+        page.setStyleSheet(f"background-color: {Couleurs.BLANC};")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(30, 15, 30, 30)
+        layout.setSpacing(15)
+
+        # Barre de recherche
+        self.input_recherche_client = QLineEdit()
+        self.input_recherche_client.setPlaceholderText("🔍 Rechercher un client...")
+        self.input_recherche_client.setStyleSheet(style_input())
+        self.input_recherche_client.textChanged.connect(self._charger_liste_clients)
+        layout.addWidget(self.input_recherche_client)
+
+        # Widget de resultats avec cartes
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+
+        from views.client_card import SearchResultsWidget
+        self.widget_resultats = SearchResultsWidget()
+        self.widget_resultats.client_selected.connect(self._ouvrir_client_depuis_carte)
+        scroll.setWidget(self.widget_resultats)
+
+        layout.addWidget(scroll)
+
+        return page
+
+    def _charger_liste_clients(self):
+        """Charge les clients dans les cartes."""
+        terme = ''
+        search_terms = []
+        if hasattr(self, 'input_recherche_client'):
+            terme = self.input_recherche_client.text().strip()
+        if terme:
+            clients = self.viewmodel.rechercher_clients(terme)
+            search_terms = terme.split()
+        else:
+            clients = self.viewmodel.lister_clients()
+
+        # Afficher dans le widget de cartes
+        if hasattr(self, 'widget_resultats'):
+            self.widget_resultats.afficher_resultats(clients, search_terms)
+
+    def _ouvrir_client_depuis_carte(self, client_id: int):
+        """Ouvre la fiche client depuis une carte."""
+        self.charger_client(client_id)
+        self._changer_page_client(self.PAGE_CREATION)
+
+    def _creer_page_formulaire(self) -> QWidget:
+        """Cree la page formulaire de creation/edition."""
+        page_form = QWidget()
+        page_layout = QVBoxLayout(page_form)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(0)
 
         # --- Zone scrollable ---
         self.scroll_area = QScrollArea()
@@ -210,10 +322,12 @@ class ClientView(QWidget):
 
         # Finaliser le scroll
         self.scroll_area.setWidget(self.scroll_widget)
-        layout_principal.addWidget(self.scroll_area)
+        page_layout.addWidget(self.scroll_area)
 
         # --- Barre de boutons (en dehors du scroll) ---
-        self._construire_barre_boutons(layout_principal)
+        self._construire_barre_boutons(page_layout)
+
+        return page_form
 
     # ------------------------------------------------------------------
     # Section : Photo de profil (centree)
@@ -1249,9 +1363,11 @@ class ClientView(QWidget):
             painter.end()
             self.label_photo.setPixmap(overlay)
         else:
-            # Pas de photo : changer le style
+            # Pas de photo : afficher un texte d'invitation
+            self.label_photo.setText("Ajouter\nune photo")
+            self.label_photo.setFont(QFont("Arial", 14, QFont.Weight.Bold))
             self.label_photo.setStyleSheet(
-                "QLabel { border: 3px solid #2196F3; border-radius: 90px; "
+                "QLabel { border: 3px dashed #2196F3; border-radius: 90px; "
                 "background-color: #E3F2FD; color: #1976D2; }"
             )
 
@@ -1261,7 +1377,9 @@ class ClientView(QWidget):
             # Restaurer la photo originale
             self._afficher_photo_pixmap(self._photo_pixmap_original)
         else:
-            # Restaurer le style par defaut
+            # Restaurer le style et texte par defaut
+            self.label_photo.setText("\U0001F464")
+            self.label_photo.setFont(QFont("Arial", 80))
             self.label_photo.setStyleSheet(
                 "QLabel { border: 3px solid #2196F3; border-radius: 90px; "
                 "background-color: white; color: #BDBDBD; }"

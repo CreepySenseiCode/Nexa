@@ -258,6 +258,61 @@ def style_onglet(actif: bool) -> str:
     )
 
 
+def style_liste_selection() -> str:
+    """Style pour QListWidget/QTableWidget avec items plus grands et lisibles."""
+    return (
+        "QListWidget, QTableWidget {"
+        f"    border: 2px solid {Couleurs.BORDURE};"
+        "    border-radius: 8px;"
+        f"    background-color: {Couleurs.BLANC};"
+        "    font-size: 12pt;"
+        "}"
+        "QListWidget::item, QTableWidget::item {"
+        "    min-height: 40px;"
+        "    padding: 8px 12px;"
+        f"    border-bottom: 1px solid {Couleurs.FOND_GRIS};"
+        "}"
+        "QListWidget::item:selected, QTableWidget::item:selected {"
+        f"    background-color: {Couleurs.PRIMAIRE_TRES_CLAIR};"
+        f"    color: {Couleurs.PRIMAIRE_FONCE};"
+        "}"
+        "QListWidget::item:hover, QTableWidget::item:hover {"
+        f"    background-color: {Couleurs.FOND_CLAIR};"
+        "}"
+    )
+
+
+def style_toggle(actif: bool) -> str:
+    """Style ameliore pour boutons toggle 3 modes."""
+    if actif:
+        return (
+            "QPushButton {"
+            f"    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+            f"        stop:0 {Couleurs.PRIMAIRE}, stop:1 {Couleurs.PRIMAIRE_FONCE});"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 12px;"
+            "    padding: 14px 28px;"
+            "    font-weight: bold;"
+            "    font-size: 13pt;"
+            "}"
+        )
+    return (
+        "QPushButton {"
+        f"    background-color: {Couleurs.FOND_SECTION};"
+        f"    color: {Couleurs.TEXTE};"
+        f"    border: 2px solid {Couleurs.BORDURE};"
+        "    border-radius: 12px;"
+        "    padding: 14px 28px;"
+        "    font-size: 13pt;"
+        "}"
+        "QPushButton:hover {"
+        f"    background-color: {Couleurs.PRIMAIRE_TRES_CLAIR};"
+        f"    border-color: {Couleurs.PRIMAIRE};"
+        "}"
+    )
+
+
 def style_scroll_area() -> str:
     """Style pour QScrollArea avec fond blanc et sans bordure."""
     return (
