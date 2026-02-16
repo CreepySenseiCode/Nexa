@@ -278,11 +278,56 @@ class ProduitsView(QWidget):
         groupe.setLayout(form)
         return groupe
 
-    def _creer_section_attributs(self) -> QGroupBox:
+    def _creer_section_attributs(self) -> QWidget:
         """Section pour les attributs personnalises du produit."""
-        groupe = QGroupBox("Caracteristiques supplementaires")
-        groupe.setStyleSheet(style_section())
+        conteneur = QWidget()
+        conteneur_layout = QVBoxLayout(conteneur)
+        conteneur_layout.setSpacing(8)
+        conteneur_layout.setContentsMargins(0, 0, 0, 0)
 
+        # Header avec titre et bouton Actualiser
+        header_layout = QHBoxLayout()
+
+        titre = QLabel("Caracteristiques supplementaires")
+        titre.setStyleSheet(
+            "font-size: 14pt; font-weight: bold; color: #333;"
+        )
+        header_layout.addWidget(titre)
+
+        header_layout.addStretch()
+
+        btn_actualiser = QPushButton("⟳ Actualiser")
+        btn_actualiser.setStyleSheet(
+            "QPushButton {"
+            "    background-color: #2196F3;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 6px;"
+            "    padding: 6px 12px;"
+            "    font-size: 11pt;"
+            "}"
+            "QPushButton:hover {"
+            "    background-color: #1976D2;"
+            "}"
+        )
+        btn_actualiser.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_actualiser.clicked.connect(self._recharger_attributs)
+        header_layout.addWidget(btn_actualiser)
+
+        conteneur_layout.addLayout(header_layout)
+
+        # Groupe avec les attributs
+        self.groupe_attributs = QGroupBox()
+        self.groupe_attributs.setStyleSheet(style_section())
+
+        self._remplir_attributs()
+
+        conteneur_layout.addWidget(self.groupe_attributs)
+
+        return conteneur
+
+    def _remplir_attributs(self):
+        """Remplit la section attributs avec les champs dynamiques."""
         layout = QVBoxLayout()
 
         attributs = self.viewmodel.lister_attributs_globaux()
@@ -318,8 +363,26 @@ class ProduitsView(QWidget):
             info_label.setAlignment(Qt.AlignCenter)
             layout.addWidget(info_label)
 
-        groupe.setLayout(layout)
-        return groupe
+        self.groupe_attributs.setLayout(layout)
+
+    def _recharger_attributs(self):
+        """Recharge la section des attributs depuis la base de donnees."""
+        # Supprimer l'ancien layout
+        old_layout = self.groupe_attributs.layout()
+        if old_layout:
+            while old_layout.count():
+                item = old_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+                elif item.layout():
+                    while item.layout().count():
+                        sub_item = item.layout().takeAt(0)
+                        if sub_item.widget():
+                            sub_item.widget().deleteLater()
+            QWidget().setLayout(old_layout)
+
+        # Recréer les attributs
+        self._remplir_attributs()
 
     def _creer_boutons(self) -> QHBoxLayout:
         layout = QHBoxLayout()
