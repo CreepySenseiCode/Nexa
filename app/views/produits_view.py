@@ -275,6 +275,27 @@ class ProduitsView(QWidget):
         self.input_description.setStyleSheet(style_input())
         form.addRow("Description :", self.input_description)
 
+        # Photo du produit
+        self.label_photo = QLabel("📦")
+        self.label_photo.setFixedSize(150, 150)
+        self.label_photo.setAlignment(Qt.AlignCenter)
+        self.label_photo.setStyleSheet(
+            "QLabel {"
+            "    border: 2px dashed #9E9E9E;"
+            "    border-radius: 8px;"
+            "    background-color: #F5F5F5;"
+            "    font-size: 48pt;"
+            "}"
+            "QLabel:hover {"
+            "    background-color: #E3F2FD;"
+            "    border-color: #2196F3;"
+            "}"
+        )
+        self.label_photo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.label_photo.mousePressEvent = lambda e: self._choisir_photo_produit()
+        self.photo_path = None
+        form.addRow("Photo :", self.label_photo)
+
         groupe.setLayout(form)
         return groupe
 
@@ -383,6 +404,43 @@ class ProduitsView(QWidget):
 
         # Recréer les attributs
         self._remplir_attributs()
+
+    def _choisir_photo_produit(self):
+        """Ouvre un QFileDialog pour sélectionner une image de produit."""
+        from PySide6.QtWidgets import QFileDialog
+        from PySide6.QtGui import QPixmap
+
+        chemin, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choisir une image",
+            "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+        )
+
+        if chemin:
+            # Stocker le chemin
+            self.photo_path = chemin
+
+            # Afficher l'image dans le label
+            pixmap = QPixmap(chemin)
+            if not pixmap.isNull():
+                # Redimensionner l'image en gardant le ratio
+                pixmap_scaled = pixmap.scaled(
+                    150, 150,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.label_photo.setPixmap(pixmap_scaled)
+                self.label_photo.setStyleSheet(
+                    "QLabel {"
+                    "    border: 2px solid #2196F3;"
+                    "    border-radius: 8px;"
+                    "    background-color: #F5F5F5;"
+                    "}"
+                    "QLabel:hover {"
+                    "    background-color: #E3F2FD;"
+                    "}"
+                )
 
     def _creer_boutons(self) -> QHBoxLayout:
         layout = QHBoxLayout()
@@ -594,7 +652,7 @@ class ProduitsView(QWidget):
             succes = self.viewmodel.modifier_produit(
                 self._produit_id,
                 {'nom': nom, 'categorie_id': categorie_id, 'prix': prix,
-                 'stock': stock, 'description': description}
+                 'stock': stock, 'description': description, 'photo': self.photo_path}
             )
             if succes:
                 QMessageBox.information(self, "Succes", "Produit modifie avec succes !")
@@ -603,7 +661,7 @@ class ProduitsView(QWidget):
         else:
             produit_id = self.viewmodel.creer_produit(
                 categorie_id=categorie_id, nom=nom, prix=prix,
-                stock=stock, description=description,
+                stock=stock, description=description, photo=self.photo_path,
             )
             if produit_id and produit_id > 0:
                 QMessageBox.information(
@@ -636,3 +694,20 @@ class ProduitsView(QWidget):
         self.spin_stock.setValue(0)
         self.input_description.clear()
         self.btn_ajouter.setText("Ajouter le produit")
+
+        # Réinitialiser la photo
+        self.photo_path = None
+        self.label_photo.clear()
+        self.label_photo.setText("📦")
+        self.label_photo.setStyleSheet(
+            "QLabel {"
+            "    border: 2px dashed #9E9E9E;"
+            "    border-radius: 8px;"
+            "    background-color: #F5F5F5;"
+            "    font-size: 48pt;"
+            "}"
+            "QLabel:hover {"
+            "    background-color: #E3F2FD;"
+            "    border-color: #2196F3;"
+            "}"
+        )

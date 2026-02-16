@@ -35,6 +35,7 @@ class ProduitModel(BaseModel):
         prix: float = 0.0,
         description: str = "",
         stock: int = 0,
+        photo: str = None,
     ) -> int:
         """Crée un nouveau produit.
 
@@ -44,6 +45,7 @@ class ProduitModel(BaseModel):
             prix:         Prix unitaire du produit (défaut 0.0).
             description:  Description textuelle du produit.
             stock:        Stock initial du produit (défaut 0).
+            photo:        Chemin vers l'image du produit (optionnel).
 
         Returns:
             L'identifiant (ID) du produit créé, ou ``-1`` en cas
@@ -52,10 +54,10 @@ class ProduitModel(BaseModel):
         try:
             cursor = self.db.execute(
                 """
-                INSERT INTO produits (categorie_id, nom, prix, stock, description)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO produits (categorie_id, nom, prix, stock, description, photo)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (categorie_id, nom, prix, stock, description),
+                (categorie_id, nom, prix, stock, description, photo),
             )
             nouveau_id = cursor.lastrowid
             logger.info("Produit créé : '%s' (ID %s)", nom, nouveau_id)

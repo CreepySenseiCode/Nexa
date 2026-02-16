@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS produits (
     prix REAL DEFAULT 0.0,
     stock INTEGER DEFAULT 0,
     description TEXT,
+    photo TEXT,
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (categorie_id) REFERENCES categories_produits(id)
 );
@@ -578,6 +579,7 @@ class DatabaseManager:
             ("clients", "photo_path", "TEXT"),
             ("produits", "stock", "INTEGER DEFAULT 0"),
             ("produits", "archive", "INTEGER DEFAULT 0"),
+            ("produits", "photo", "TEXT"),
         ]
         for table, colonne, type_col in migrations:
             try:
@@ -618,6 +620,7 @@ class DatabaseManager:
                             prix REAL DEFAULT 0.0,
                             stock INTEGER DEFAULT 0,
                             description TEXT,
+                            photo TEXT,
                             archive INTEGER DEFAULT 0,
                             date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             FOREIGN KEY (categorie_id) REFERENCES categories_produits(id)
@@ -626,11 +629,12 @@ class DatabaseManager:
                     for row in data:
                         row_dict = {col_names[i]: row[i] for i in range(len(col_names))}
                         conn.execute(
-                            "INSERT INTO produits (id, categorie_id, nom, prix, stock, description, archive, date_creation) "
-                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            "INSERT INTO produits (id, categorie_id, nom, prix, stock, description, photo, archive, date_creation) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             (row_dict.get('id'), row_dict.get('categorie_id'),
                              row_dict.get('nom'), row_dict.get('prix', 0),
                              row_dict.get('stock', 0), row_dict.get('description'),
+                             row_dict.get('photo'),
                              row_dict.get('archive', 0),
                              row_dict.get('date_creation')),
                         )
