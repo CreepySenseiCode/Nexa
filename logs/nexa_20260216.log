@@ -31,3 +31,21 @@
 2026-02-16 13:04:00 - nexa - INFO - main.py:19 - ============================================================
 2026-02-16 13:04:00 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
 2026-02-16 13:04:00 - nexa - INFO - main.py:21 - ============================================================
+2026-02-16 14:06:13 - nexa - INFO - main.py:19 - ============================================================
+2026-02-16 14:06:13 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-02-16 14:06:13 - nexa - INFO - main.py:21 - ============================================================
+2026-02-16 14:12:26 - nexa - INFO - main.py:19 - ============================================================
+2026-02-16 14:12:26 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-02-16 14:12:26 - nexa - INFO - main.py:21 - ============================================================
+2026-02-16 14:12:29 - nexa - INFO - main.py:48 - Initialisation de QApplication...
+2026-02-16 14:12:30 - nexa - INFO - main.py:78 - Création de la fenêtre principale...
+2026-02-16 14:12:30 - nexa - INFO - main.py:82 - Création des vues d'onglets...
+2026-02-16 14:12:31 - nexa - CRITICAL - main.py:158 - Erreur fatale au démarrage : 'VenteView' object has no attribute 'combo_categorie'
+Traceback (most recent call last):
+  File "/Users/CreepySensei/Desktop/Dev/MailTo/app/main.py", line 84, in main
+    vue_vente = VenteView()
+  File "/Users/CreepySensei/Desktop/Dev/MailTo/app/views/vente_view.py", line 43, in __init__
+    self._charger_categories()
+  File "/Users/CreepySensei/Desktop/Dev/MailTo/app/views/vente_view.py", line 479, in _charger_categories
+    self.combo_categorie.clear()
+AttributeError: 'VenteView' object has no attribute 'combo_categorie'

@@ -40,7 +40,6 @@ class VenteView(QWidget):
 
         self._construire_ui()
         self._connecter_signaux()
-        self._charger_categories()
 
     # ------------------------------------------------------------------ #
     #                        Construction de l'UI                         #
@@ -473,33 +472,15 @@ class VenteView(QWidget):
     #                           Categories                                #
     # ------------------------------------------------------------------ #
 
-    def _charger_categories(self):
-        """Charge les categories dans le combobox."""
-        categories = self.viewmodel.lister_categories()
-        self.combo_categorie.clear()
-        self.combo_categorie.addItem("-- Selectionner --", 0)
-        for cat in categories:
-            self.combo_categorie.addItem(cat['nom'], cat['id'])
+    # NOTE: Les anciennes méthodes _charger_categories(), _on_categorie_change()
+    # et _on_produit_change() ont été supprimées car remplacées par le système
+    # de recherche avec cards visuelles (P4.2)
 
-    def _on_categorie_change(self, index: int):
-        """Filtre les produits par categorie selectionnee."""
-        categorie_id = self.combo_categorie.currentData()
-        self.combo_produit.clear()
-        if categorie_id:
-            produits = self.viewmodel.lister_produits(categorie_id)
-            self.combo_produit.addItem("-- Selectionner --", 0)
-            for p in produits:
-                self.combo_produit.addItem(
-                    f"{p['nom']} - {p['prix']:.2f} \u20ac", p['id']
-                )
-
-    # ------------------------------------------------------------------ #
-    #                            Produits                                 #
-    # ------------------------------------------------------------------ #
-
-    def _on_produit_change(self, index: int):
-        """Met a jour le prix unitaire et le stock quand un produit est selectionne."""
-        produit_id = self.combo_produit.currentData()
+    def _on_produit_change_legacy(self, index: int):
+        """[OBSOLÈTE] Ancienne méthode - conservée pour référence historique."""
+        # Cette méthode n'est plus utilisée depuis P4.2
+        # La sélection se fait maintenant via SearchProductsWidget
+        produit_id = 0  # Dummy pour éviter les erreurs
         if not produit_id:
             self.label_stock.setText("\U0001F4E6 Stock : \u2014")
             self.label_stock.setStyleSheet(
@@ -629,7 +610,9 @@ class VenteView(QWidget):
         # Reinitialiser le formulaire produit
         self.spin_quantite.setValue(1)
         self.spin_prix.setValue(0)
-        self.combo_produit.setCurrentIndex(0)
+        self._produit_selectionne = None
+        self.label_produit_selectionne.setText("Aucun produit sélectionné")
+        self.label_stock.setText("📦 Stock : —")
 
         # Recalculer le total general
         self._calculer_total_general()
@@ -868,21 +851,13 @@ class VenteView(QWidget):
         if ok and nom.strip():
             cat_id = self.viewmodel.creer_categorie(nom.strip())
             if cat_id:
-                self._charger_categories()
-                index = self.combo_categorie.findData(cat_id)
-                if index >= 0:
-                    self.combo_categorie.setCurrentIndex(index)
+                QMessageBox.information(
+                    self, "Succès", f"Catégorie '{nom}' créée avec succès."
+                )
 
     def _creer_produit(self):
         """Popup pour creer un nouveau produit."""
         from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout
-
-        categorie_id = self.combo_categorie.currentData()
-        if not categorie_id:
-            QMessageBox.warning(
-                self, "Attention", "Selectionnez d'abord une categorie."
-            )
-            return
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Nouveau produit")
@@ -897,6 +872,14 @@ class VenteView(QWidget):
         input_prix.setDecimals(2)
         input_prix.setSuffix(" \u20ac")
 
+        # ComboBox pour sélectionner la catégorie
+        combo_cat = QComboBox()
+        combo_cat.addItem("-- Sélectionner une catégorie --", None)
+        categories = self.viewmodel.lister_categories()
+        for cat in categories:
+            combo_cat.addItem(cat['nom'], cat['id'])
+
+        layout.addRow("Catégorie :", combo_cat)
         layout.addRow("Nom :", input_nom)
         layout.addRow("Prix :", input_prix)
 
@@ -908,16 +891,22 @@ class VenteView(QWidget):
         layout.addRow(buttons)
 
         if dialog.exec() == QDialog.Accepted and input_nom.text().strip():
+            categorie_id = combo_cat.currentData()
+            if not categorie_id:
+                QMessageBox.warning(
+                    self, "Attention", "Veuillez sélectionner une catégorie."
+                )
+                return
+
             prod_id = self.viewmodel.creer_produit(
                 categorie_id, input_nom.text().strip(), input_prix.value()
             )
             if prod_id:
-                self._on_categorie_change(
-                    self.combo_categorie.currentIndex()
+                QMessageBox.information(
+                    self, "Succès",
+                    f"Produit '{input_nom.text()}' créé avec succès.\n"
+                    "Recherchez-le pour l'ajouter à la vente."
                 )
-                index = self.combo_produit.findData(prod_id)
-                if index >= 0:
-                    self.combo_produit.setCurrentIndex(index)
 
     # ------------------------------------------------------------------ #
     #                    Enregistrement de la vente                       #
@@ -1007,8 +996,13 @@ class VenteView(QWidget):
 
     def _reinitialiser_formulaire_vente(self):
         """Reinitialise le formulaire de vente (mais garde le client)."""
-        self.combo_categorie.setCurrentIndex(0)
-        self.combo_produit.clear()
+        # Réinitialiser la sélection de produit
+        self._produit_selectionne = None
+        self.label_produit_selectionne.setText("Aucun produit sélectionné")
+        self.label_stock.setText("📦 Stock : —")
+        self.input_recherche_produit.clear()
+        self.widget_resultats_produits.setVisible(False)
+
         self.spin_quantite.setValue(1)
         self.spin_prix.setValue(0)
         self.label_sous_total.setText("0,00 \u20ac")
