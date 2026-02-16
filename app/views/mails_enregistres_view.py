@@ -166,8 +166,8 @@ class MailsEnregistresView(QWidget):
 
         if self.mode_affichage == "brouillons":
             # Requête filtrée sur brouillons uniquement
-            from models.database import Database
-            db = Database()
+            from models.database import get_db
+            db = get_db()
             mails = db.fetchall("""
                 SELECT * FROM mails_enregistres
                 WHERE type = 'brouillon'
@@ -177,8 +177,8 @@ class MailsEnregistresView(QWidget):
 
         elif self.mode_affichage == "templates":
             # Requête filtrée sur templates uniquement
-            from models.database import Database
-            db = Database()
+            from models.database import get_db
+            db = get_db()
             mails = db.fetchall("""
                 SELECT * FROM mails_enregistres
                 WHERE type = 'template'

@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 from utils.styles import style_section, style_input, style_bouton, style_scroll_area, Couleurs
 from viewmodels.parametres_vm import ParametresViewModel
-from models import categorie_produit
+from models.categorie_produit import CategorieProduitModel
 
 
 class ParametresView(QWidget):
@@ -21,6 +21,7 @@ class ParametresView(QWidget):
     def __init__(self):
         super().__init__()
         self.viewmodel = ParametresViewModel()
+        self.categorie_model = CategorieProduitModel()
         self._construire_ui()
         self._charger_donnees()
 
@@ -565,7 +566,7 @@ class ParametresView(QWidget):
 
     def _charger_categories(self):
         """Charge les catégories depuis la base de données."""
-        categories = categorie_produit.lister_categories()
+        categories = self.categorie_model.lister_categories(actives_uniquement=False)
         self.list_categories.clear()
         for cat in categories:
             nom = cat['nom']
@@ -622,7 +623,7 @@ class ParametresView(QWidget):
                 return
 
             try:
-                categorie_id = categorie_produit.ajouter_categorie(nom, desc)
+                categorie_id = self.categorie_model.ajouter_categorie(nom, desc)
                 if categorie_id > 0:
                     self._charger_categories()
                     QMessageBox.information(
@@ -664,7 +665,7 @@ class ParametresView(QWidget):
         if reponse == QMessageBox.Yes:
             try:
                 # Trouver l'ID de la catégorie par son nom
-                categories = categorie_produit.lister_categories()
+                categories = self.categorie_model.lister_categories(actives_uniquement=False)
                 cat_id = None
                 for cat in categories:
                     if cat['nom'] == nom:
@@ -672,7 +673,7 @@ class ParametresView(QWidget):
                         break
 
                 if cat_id:
-                    categorie_produit.supprimer_categorie(cat_id)
+                    self.categorie_model.supprimer_categorie(cat_id)
                     self._charger_categories()
                     QMessageBox.information(
                         self, "Succès", f"Catégorie '{nom}' supprimée."

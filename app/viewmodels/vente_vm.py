@@ -53,8 +53,8 @@ class VenteViewModel(QObject):
         if not terme or len(terme.strip()) < 1:
             return []
 
-        from models.database import Database
-        db = Database()
+        from models.database import get_db
+        db = get_db()
 
         # Recherche avec JOIN sur catégories
         query = """
