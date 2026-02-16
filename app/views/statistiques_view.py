@@ -105,20 +105,10 @@ class StatistiquesView(QWidget):
         layout_self.addWidget(scroll)
 
     def _creer_section_periode(self) -> QHBoxLayout:
-        """Cree l'en-tete avec le titre et la navigation de periode."""
+        """Cree l'en-tete avec le titre et la navigation de periode (3 sections)."""
         header = QHBoxLayout()
 
-
-        # Selecteur de type de periode
-        periode_group = QFrame()
-        periode_group.setStyleSheet(
-            "QFrame { background-color: white; border: 2px solid #E0E0E0; "
-            "border-radius: 10px; padding: 8px; }"
-        )
-
-        periode_layout = QHBoxLayout(periode_group)
-        periode_layout.setSpacing(8)
-
+        # --- SECTION GAUCHE: Selecteur de type de periode ---
         self.combo_periode = QComboBox()
         self.combo_periode.addItems(["Jour", "Semaine", "Mois", "Annee"])
         self.combo_periode.setCurrentIndex(2)  # Mois par defaut
@@ -127,9 +117,11 @@ class StatistiquesView(QWidget):
             "padding: 5px 10px; border: 2px solid #2196F3; border-radius: 6px; "
             "background-color: white; }"
         )
-        periode_layout.addWidget(self.combo_periode)
+        header.addWidget(self.combo_periode)
 
-        # Bouton Precedent
+        header.addStretch()
+
+        # --- SECTION CENTRE: Navigation (< label >) ---
         self.btn_prev = QPushButton("\u25C0")
         self.btn_prev.setFixedSize(36, 36)
         self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -138,18 +130,16 @@ class StatistiquesView(QWidget):
             "border: none; border-radius: 18px; font-size: 14pt; font-weight: bold; }"
             "QPushButton:hover { background-color: #1976D2; }"
         )
-        periode_layout.addWidget(self.btn_prev)
+        header.addWidget(self.btn_prev)
 
-        # Label periode actuelle
         self.label_periode = QLabel()
         self.label_periode.setFont(QFont("Arial", 13, QFont.Weight.Bold))
         self.label_periode.setStyleSheet(
             "color: #1976D2; min-width: 200px; border: none;"
         )
         self.label_periode.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        periode_layout.addWidget(self.label_periode)
+        header.addWidget(self.label_periode)
 
-        # Bouton Suivant
         self.btn_next = QPushButton("\u25B6")
         self.btn_next.setFixedSize(36, 36)
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -158,12 +148,11 @@ class StatistiquesView(QWidget):
             "border: none; border-radius: 18px; font-size: 14pt; font-weight: bold; }"
             "QPushButton:hover { background-color: #1976D2; }"
         )
-        periode_layout.addWidget(self.btn_next)
+        header.addWidget(self.btn_next)
 
+        header.addStretch()
 
-        header.addWidget(periode_group)
-
-        # Bouton Actualiser
+        # --- SECTION DROITE: Bouton d'action ---
         self.btn_refresh = QPushButton("Actualiser")
         self.btn_refresh.setStyleSheet(
             "QPushButton { background-color: #2196F3; color: white; "
@@ -430,13 +419,32 @@ class StatistiquesView(QWidget):
 
         return date_debut, date_fin
 
-    def charger_periode(self, date_debut: str, date_fin: str):
-        """Charge les stats pour une periode externe (ex: depuis le calendrier)."""
-        logger.info("Chargement stats externe : %s -> %s", date_debut, date_fin)
+    def charger_periode(self, debut: str, fin: str):
+        """Charge les stats pour une periode externe (ex: depuis le calendrier).
+
+        Args:
+            debut: Date de début au format YYYY-MM-DD
+            fin: Date de fin au format YYYY-MM-DD
+        """
+        logger.info(f"Chargement stats période externe : {debut} → {fin}")
+
         try:
+            # Convertir les dates YYYY-MM-DD en timestamps complets
+            date_debut = f"{debut} 00:00:00"
+            date_fin = f"{fin} 23:59:59"
+
+            # Mettre à jour la date actuelle pour refléter la période
+            from datetime import datetime
+            self.date_actuelle = datetime.strptime(debut, "%Y-%m-%d")
+            self._mettre_a_jour_label_periode()
+
+            # Charger les données
             donnees = self.viewmodel.charger_statistiques(date_debut, date_fin)
             if not donnees:
+                logger.warning("Aucune donnée retournée pour la période externe")
                 return
+
+            # Mettre à jour les KPI
             kpis = donnees['kpis']
             self._kpi_labels["Chiffre d'affaires"].setText(
                 f"{kpis['ca_total']:.2f} EUR"
@@ -446,11 +454,16 @@ class StatistiquesView(QWidget):
             self._kpi_labels["Panier moyen"].setText(
                 f"{kpis['panier_moyen']:.2f} EUR"
             )
+
+            # Mettre à jour les tops
             self._maj_section_top(self._top_clients_layout, donnees['top_clients'], "client")
             self._maj_section_top(self._top_produits_layout, donnees['top_produits'], "produit")
+
+            # Générer les graphiques
             self._generer_graphiques(donnees['ventes'], donnees['top_produits'])
+
         except Exception as e:
-            logger.error("Erreur chargement stats externe : %s", e, exc_info=True)
+            logger.error(f"Erreur chargement période externe : {e}", exc_info=True)
 
     def _charger_stats(self):
         """Charge les statistiques reelles depuis la base de donnees."""
@@ -494,30 +507,6 @@ class StatistiquesView(QWidget):
                 "color:#F44336;font-family:sans-serif;'>"
                 "<h3>Erreur de chargement</h3></body></html>"
             )
-
-    def charger_periode(self, debut: str, fin: str):
-        """Charge les statistiques pour une période donnée."""
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Chargement stats période : {debut} → {fin}")
-
-        # Convertir les dates
-        from datetime import datetime
-        try:
-            date_debut = datetime.strptime(debut, "%Y-%m-%d")
-            date_fin = datetime.strptime(fin, "%Y-%m-%d")
-
-            # Mettre à jour la vue actuelle
-            self.date_actuelle = date_debut
-
-            # Calculer et afficher la période
-            self._mettre_a_jour_label_periode()
-
-            # Charger les stats pour cette période
-            self._charger_stats()
-
-        except Exception as e:
-            logger.error(f"Erreur chargement période : {e}", exc_info=True)
 
     def _maj_section_top(
         self, layout: QVBoxLayout, items: list[dict], type_item: str

@@ -33,48 +33,10 @@ class CalendrierView(QWidget):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(10)
 
-        # === EN-TETE ===
+        # === EN-TETE (3 sections: Gauche | Centre | Droite) ===
         header_layout = QHBoxLayout()
 
-
-        header_layout.addStretch()
-
-        nav_style = (
-            "QPushButton {"
-            "    background-color: white;"
-            "    border: 2px solid #9E9E9E;"
-            "    border-radius: 20px;"
-            "    font-size: 16pt;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: #E3F2FD;"
-            "}"
-        )
-
-        btn_prev = QPushButton("<")
-        btn_prev.setFixedSize(40, 40)
-        btn_prev.setStyleSheet(nav_style)
-        btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_prev.clicked.connect(self._precedent)
-        header_layout.addWidget(btn_prev)
-
-        self._label_mois = QLabel()
-        self._label_mois.setStyleSheet(
-            "font-size: 18pt; font-weight: bold; color: #333; margin: 0 20px;"
-        )
-        self._maj_label_titre()
-        header_layout.addWidget(self._label_mois)
-
-        btn_next = QPushButton(">")
-        btn_next.setFixedSize(40, 40)
-        btn_next.setStyleSheet(nav_style)
-        btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_next.clicked.connect(self._suivant)
-        header_layout.addWidget(btn_next)
-
-        header_layout.addStretch()
-
-        # Boutons de vue
+        # --- SECTION GAUCHE: Boutons de vue ---
         view_btn_style = (
             "QPushButton {"
             "    background-color: white;"
@@ -115,7 +77,45 @@ class CalendrierView(QWidget):
         header_layout.addWidget(self._btn_semaine)
         header_layout.addWidget(self._btn_jour)
 
-        # Bouton Statistiques
+        header_layout.addStretch()
+
+        # --- SECTION CENTRE: Navigation ---
+        nav_style = (
+            "QPushButton {"
+            "    background-color: white;"
+            "    border: 2px solid #9E9E9E;"
+            "    border-radius: 20px;"
+            "    font-size: 16pt;"
+            "}"
+            "QPushButton:hover {"
+            "    background-color: #E3F2FD;"
+            "}"
+        )
+
+        btn_prev = QPushButton("<")
+        btn_prev.setFixedSize(40, 40)
+        btn_prev.setStyleSheet(nav_style)
+        btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_prev.clicked.connect(self._precedent)
+        header_layout.addWidget(btn_prev)
+
+        self._label_mois = QLabel()
+        self._label_mois.setStyleSheet(
+            "font-size: 18pt; font-weight: bold; color: #333; margin: 0 20px;"
+        )
+        self._maj_label_titre()
+        header_layout.addWidget(self._label_mois)
+
+        btn_next = QPushButton(">")
+        btn_next.setFixedSize(40, 40)
+        btn_next.setStyleSheet(nav_style)
+        btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_next.clicked.connect(self._suivant)
+        header_layout.addWidget(btn_next)
+
+        header_layout.addStretch()
+
+        # --- SECTION DROITE: Bouton d'action ---
         btn_stats = QPushButton("Voir statistiques")
         btn_stats.setStyleSheet(style_bouton(Couleurs.SUCCES, taille="petit"))
         btn_stats.setCursor(Qt.CursorShape.PointingHandCursor)
