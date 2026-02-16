@@ -6,12 +6,13 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QPushButton, QGroupBox, QDateEdit,
     QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
-    QCheckBox, QComboBox, QSpinBox, QListWidget,
+    QCheckBox, QComboBox, QSpinBox, QListWidget, QDialog, QTextEdit,
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 from utils.styles import style_section, style_input, style_bouton, style_scroll_area, Couleurs
 from viewmodels.parametres_vm import ParametresViewModel
+from models import categorie_produit
 
 
 class ParametresView(QWidget):
@@ -49,16 +50,19 @@ class ParametresView(QWidget):
         # Section 4 : Attributs produits personnalisables
         layout.addWidget(self._creer_section_attributs_produits())
 
-        # Section 5 : Configuration des champs clients
+        # Section 5 : Categories de produits
+        layout.addWidget(self._creer_section_categories_produits())
+
+        # Section 6 : Configuration des champs clients
         layout.addWidget(self._creer_section_champs_clients())
 
-        # Section 6 : Apparence
+        # Section 7 : Apparence
         layout.addWidget(self._creer_section_apparence())
 
-        # Section 7 : Base de donnees
+        # Section 8 : Base de donnees
         layout.addWidget(self._creer_section_database())
 
-        # Section 8 : Composition de la base de donnees
+        # Section 9 : Composition de la base de donnees
         layout.addWidget(self._creer_section_composition_db())
 
         layout.addStretch()
@@ -502,6 +506,185 @@ class ParametresView(QWidget):
                 QMessageBox.critical(
                     self, "Erreur",
                     f"Erreur lors de la suppression : {e}",
+                )
+
+    # ------------------------------------------------------------------ #
+    #               Section Categories Produits                            #
+    # ------------------------------------------------------------------ #
+
+    def _creer_section_categories_produits(self) -> QGroupBox:
+        """Section pour gérer les catégories de produits."""
+        box = QGroupBox("Catégories de produits")
+        box.setStyleSheet(style_section())
+
+        layout = QVBoxLayout()
+
+        info_label = QLabel(
+            "Organisez vos produits par catégories pour une meilleure gestion "
+            "(ex: Électronique, Vêtements, Alimentation, etc.)"
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; font-size: 11pt; margin-bottom: 15px;")
+        layout.addWidget(info_label)
+
+        # Liste des catégories actuelles
+        self.list_categories = QListWidget()
+        self.list_categories.setStyleSheet(
+            "QListWidget {"
+            "    border: 2px solid #9E9E9E;"
+            "    border-radius: 8px;"
+            "    padding: 5px;"
+            "    font-size: 12pt;"
+            "}"
+        )
+        layout.addWidget(self.list_categories)
+
+        # Boutons d'action
+        btn_layout = QHBoxLayout()
+
+        btn_ajouter = QPushButton("Ajouter une catégorie")
+        btn_ajouter.setStyleSheet(style_bouton())
+        btn_ajouter.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_ajouter.clicked.connect(self._ajouter_categorie)
+        btn_layout.addWidget(btn_ajouter)
+
+        btn_supprimer = QPushButton("Supprimer")
+        btn_supprimer.setStyleSheet(style_bouton(Couleurs.DANGER))
+        btn_supprimer.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_supprimer.clicked.connect(self._supprimer_categorie)
+        btn_layout.addWidget(btn_supprimer)
+
+        layout.addLayout(btn_layout)
+
+        box.setLayout(layout)
+
+        # Charger les catégories existantes
+        self._charger_categories()
+
+        return box
+
+    def _charger_categories(self):
+        """Charge les catégories depuis la base de données."""
+        categories = categorie_produit.lister_categories()
+        self.list_categories.clear()
+        for cat in categories:
+            nom = cat['nom']
+            desc = cat.get('description', '')
+            if desc:
+                self.list_categories.addItem(f"{nom} - {desc}")
+            else:
+                self.list_categories.addItem(nom)
+
+    def _ajouter_categorie(self):
+        """Affiche un dialog pour ajouter une nouvelle catégorie."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Nouvelle catégorie")
+        dialog.setMinimumWidth(400)
+
+        layout = QFormLayout()
+
+        input_nom = QLineEdit()
+        input_nom.setPlaceholderText("Ex: Électronique")
+        input_nom.setStyleSheet(style_input())
+        layout.addRow("Nom :", input_nom)
+
+        input_desc = QTextEdit()
+        input_desc.setPlaceholderText("Description optionnelle...")
+        input_desc.setMaximumHeight(100)
+        input_desc.setStyleSheet(style_input())
+        layout.addRow("Description :", input_desc)
+
+        btn_layout = QHBoxLayout()
+        btn_valider = QPushButton("Créer")
+        btn_valider.setStyleSheet(style_bouton())
+        btn_valider.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_valider.clicked.connect(dialog.accept)
+
+        btn_annuler = QPushButton("Annuler")
+        btn_annuler.setStyleSheet(style_bouton(Couleurs.DANGER))
+        btn_annuler.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_annuler.clicked.connect(dialog.reject)
+
+        btn_layout.addWidget(btn_valider)
+        btn_layout.addWidget(btn_annuler)
+        layout.addRow(btn_layout)
+
+        dialog.setLayout(layout)
+
+        if dialog.exec() == QDialog.Accepted:
+            nom = input_nom.text().strip()
+            desc = input_desc.toPlainText().strip()
+
+            if not nom:
+                QMessageBox.warning(
+                    self, "Erreur", "Veuillez entrer un nom de catégorie."
+                )
+                return
+
+            try:
+                categorie_id = categorie_produit.ajouter_categorie(nom, desc)
+                if categorie_id > 0:
+                    self._charger_categories()
+                    QMessageBox.information(
+                        self, "Succès", f"Catégorie '{nom}' créée avec succès."
+                    )
+                else:
+                    QMessageBox.warning(
+                        self, "Erreur", "Impossible de créer la catégorie."
+                    )
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Erreur SQL",
+                    f"Impossible de créer la catégorie.\n\nErreur : {str(e)}"
+                )
+
+    def _supprimer_categorie(self):
+        """Supprime la catégorie sélectionnée."""
+        item = self.list_categories.currentItem()
+
+        if not item:
+            QMessageBox.warning(
+                self, "Erreur",
+                "Veuillez sélectionner une catégorie à supprimer."
+            )
+            return
+
+        # Extraire le nom (avant " - " s'il y a une description)
+        texte = item.text()
+        nom = texte.split(" - ")[0] if " - " in texte else texte
+
+        reponse = QMessageBox.question(
+            self,
+            "Confirmation",
+            f"Voulez-vous vraiment supprimer la catégorie '{nom}' ?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reponse == QMessageBox.Yes:
+            try:
+                # Trouver l'ID de la catégorie par son nom
+                categories = categorie_produit.lister_categories()
+                cat_id = None
+                for cat in categories:
+                    if cat['nom'] == nom:
+                        cat_id = cat['id']
+                        break
+
+                if cat_id:
+                    categorie_produit.supprimer_categorie(cat_id)
+                    self._charger_categories()
+                    QMessageBox.information(
+                        self, "Succès", f"Catégorie '{nom}' supprimée."
+                    )
+                else:
+                    QMessageBox.warning(
+                        self, "Erreur", "Catégorie introuvable."
+                    )
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Erreur",
+                    f"Erreur lors de la suppression : {e}"
                 )
 
     # ------------------------------------------------------------------ #

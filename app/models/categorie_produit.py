@@ -1,133 +1,127 @@
-"""
-Modèle Catégorie Produit.
-"""
-import logging
-import sqlite3
+"""Modèle pour la gestion des catégories de produits.
 
-from models.base_model import BaseModel
+Ce module permet de créer, lister et supprimer des catégories de produits.
+"""
+
+import logging
+from models.database import Database
 
 logger = logging.getLogger(__name__)
 
 
-class CategorieProduitModel(BaseModel):
-    """Gestion des catégories de produits."""
+def ajouter_categorie(nom: str, description: str = "") -> int:
+    """Ajoute une nouvelle catégorie de produit.
 
-    _table = "categories_produits"
+    Args:
+        nom: Nom de la catégorie
+        description: Description optionnelle de la catégorie
 
-    def lister_categories(self, actives_uniquement=True):
-        """Liste toutes les catégories."""
-        query = """
-            SELECT id, nom, description, actif, ordre
-            FROM categories_produits
-        """
+    Returns:
+        ID de la catégorie créée, ou -1 en cas d'erreur
+    """
+    if not nom or not nom.strip():
+        logger.warning("Tentative d'ajout d'une catégorie sans nom")
+        return -1
 
-        if actives_uniquement:
-            query += " WHERE actif = 1"
-
-        query += " ORDER BY ordre ASC, nom ASC"
-
-        return self.db.fetchall(query)
-
-    def obtenir_categorie(self, categorie_id: int):
-        """Récupère une catégorie par son ID."""
-        return self.db.fetchone(
-            "SELECT * FROM categories_produits WHERE id = ?",
-            (categorie_id,)
+    try:
+        db = Database()
+        # Vérifier que la table existe
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS categories_produits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL UNIQUE,
+                description TEXT,
+                date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         )
 
-    def creer_categorie(self, nom: str, description: str = None) -> int:
-        """Crée une nouvelle catégorie."""
-        try:
-            existe = self.db.fetchone(
-                "SELECT id FROM categories_produits WHERE nom = ?",
-                (nom,)
-            )
+        db.execute(
+            "INSERT INTO categories_produits (nom, description) VALUES (?, ?)",
+            (nom.strip(), description.strip())
+        )
+        categorie_id = db.lastrowid()
+        logger.info(f"Catégorie créée : {nom} (ID: {categorie_id})")
+        return categorie_id
 
-            if existe:
-                return existe['id']
+    except Exception as e:
+        logger.error(f"Erreur lors de l'ajout de la catégorie '{nom}' : {e}", exc_info=True)
+        return -1
 
-            max_ordre = self.db.fetchone(
-                "SELECT MAX(ordre) as max_ordre FROM categories_produits"
-            )
-            ordre = (max_ordre['max_ordre'] or 0) + 1 if max_ordre else 1
 
-            self.db.execute(
-                """
-                INSERT INTO categories_produits (nom, description, ordre)
-                VALUES (?, ?, ?)
-                """,
-                (nom, description, ordre)
-            )
+def supprimer_categorie(categorie_id: int) -> bool:
+    """Supprime une catégorie de produit.
 
-            result = self.db.fetchone(
-                "SELECT last_insert_rowid() as id"
-            )
-            return result['id'] if result else None
+    Args:
+        categorie_id: ID de la catégorie à supprimer
 
-        except sqlite3.Error as e:
-            logger.error("Erreur création catégorie : %s", e)
-            return None
-
-    def modifier_categorie(self, categorie_id: int, nom: str = None,
-                           description: str = None, actif: int = None):
-        """Modifie une catégorie."""
-        updates = []
-        params = []
-
-        if nom is not None:
-            updates.append("nom = ?")
-            params.append(nom)
-
-        if description is not None:
-            updates.append("description = ?")
-            params.append(description)
-
-        if actif is not None:
-            updates.append("actif = ?")
-            params.append(actif)
-
-        if not updates:
-            return False
-
-        params.append(categorie_id)
-
-        query = f"UPDATE categories_produits SET {', '.join(updates)} WHERE id = ?"
-
-        try:
-            self.db.execute(query, tuple(params))
-            return True
-        except sqlite3.Error as e:
-            logger.error("Erreur modification catégorie : %s", e)
-            return False
-
-    def supprimer_categorie(self, categorie_id: int, soft_delete=True):
-        """Supprime ou désactive une catégorie."""
-        try:
-            if soft_delete:
-                self.db.execute(
-                    "UPDATE categories_produits SET actif = 0 WHERE id = ?",
-                    (categorie_id,)
-                )
-            else:
-                self.db.execute(
-                    "UPDATE produits SET categorie_id = NULL WHERE categorie_id = ?",
-                    (categorie_id,)
-                )
-                self.db.execute(
-                    "DELETE FROM categories_produits WHERE id = ?",
-                    (categorie_id,)
-                )
-
-            return True
-
-        except sqlite3.Error as e:
-            logger.error("Erreur suppression catégorie : %s", e)
-            return False
-
-    def compter_produits(self, categorie_id: int) -> int:
-        """Compte le nombre de produits dans une catégorie."""
-        result = self.db.fetchone(
-            "SELECT COUNT(*) as count FROM produits WHERE categorie_id = ?",
+    Returns:
+        True si la suppression a réussi, False sinon
+    """
+    try:
+        db = Database()
+        db.execute(
+            "DELETE FROM categories_produits WHERE id = ?",
             (categorie_id,)
         )
-        return result['count'] if result else 0
+        logger.info(f"Catégorie {categorie_id} supprimée")
+        return True
+
+    except Exception as e:
+        logger.error(f"Erreur lors de la suppression de la catégorie {categorie_id} : {e}", exc_info=True)
+        return False
+
+
+def lister_categories() -> list[dict]:
+    """Liste toutes les catégories de produits.
+
+    Returns:
+        Liste de dictionnaires représentant les catégories
+        Format: [{'id': int, 'nom': str, 'description': str, 'date_creation': str}, ...]
+    """
+    try:
+        db = Database()
+        # Vérifier que la table existe
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS categories_produits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL UNIQUE,
+                description TEXT,
+                date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        categories = db.fetchall(
+            "SELECT id, nom, description, date_creation FROM categories_produits ORDER BY nom"
+        )
+        logger.info(f"{len(categories)} catégories chargées")
+        return categories
+
+    except Exception as e:
+        logger.error(f"Erreur lors du chargement des catégories : {e}", exc_info=True)
+        return []
+
+
+def obtenir_categorie(categorie_id: int) -> dict | None:
+    """Récupère une catégorie par son ID.
+
+    Args:
+        categorie_id: ID de la catégorie
+
+    Returns:
+        Dictionnaire représentant la catégorie, ou None si non trouvée
+    """
+    try:
+        db = Database()
+        categorie = db.fetchone(
+            "SELECT id, nom, description, date_creation FROM categories_produits WHERE id = ?",
+            (categorie_id,)
+        )
+        return categorie
+
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération de la catégorie {categorie_id} : {e}", exc_info=True)
+        return None
