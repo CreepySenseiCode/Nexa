@@ -41,6 +41,46 @@ class VenteViewModel(QObject):
         """Retourne les produits filtrés par catégorie."""
         return self.produit_model.lister_produits(categorie_id)
 
+    def rechercher_produits_avance(self, terme: str) -> list[dict]:
+        """Recherche avancée de produits avec JOIN sur catégories.
+
+        Args:
+            terme: Terme de recherche (cherche dans nom produit et nom catégorie)
+
+        Returns:
+            Liste de dictionnaires avec id, nom, prix, stock, photo, categorie_nom
+        """
+        if not terme or len(terme.strip()) < 1:
+            return []
+
+        from models.database import Database
+        db = Database()
+
+        # Recherche avec JOIN sur catégories
+        query = """
+            SELECT
+                p.id,
+                p.nom,
+                p.prix,
+                p.stock,
+                p.photo,
+                p.categorie_id,
+                c.nom AS categorie_nom
+            FROM produits p
+            LEFT JOIN categories_produits c ON p.categorie_id = c.id
+            WHERE p.archive = 0
+              AND (
+                  p.nom LIKE ?
+                  OR c.nom LIKE ?
+              )
+            ORDER BY p.nom
+        """
+
+        pattern = f"%{terme.strip()}%"
+        resultats = db.fetchall(query, (pattern, pattern))
+
+        return resultats
+
     def creer_categorie(self, nom: str) -> Optional[int]:
         """Crée une nouvelle catégorie."""
         if not nom.strip():

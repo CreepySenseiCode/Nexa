@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 
 from views.client_card import SearchResultsWidget
+from views.produit_card import SearchProductsWidget
 from utils.styles import style_scroll_area, Couleurs
 
 
@@ -30,6 +31,8 @@ class VenteView(QWidget):
 
         # Variable pour stocker l'ID du client selectionne
         self._client_id = None
+        # Variable pour stocker le produit sélectionné (dict)
+        self._produit_selectionne = None
         # Code promo valide (dict ou None)
         self._code_promo_valide = None
         # Liste des articles ajoutes
@@ -144,38 +147,36 @@ class VenteView(QWidget):
         groupe_produit = QGroupBox("Produit")
         layout_produit = QVBoxLayout(groupe_produit)
 
-        # Ligne 1 : Categorie
-        layout_categorie = QHBoxLayout()
-        label_categorie = QLabel("Categorie :")
-        self.combo_categorie = QComboBox()
-        self.combo_categorie.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # Champ de recherche produit
+        self.input_recherche_produit = QLineEdit()
+        self.input_recherche_produit.setPlaceholderText(
+            "Rechercher un produit (nom ou catégorie)..."
+        )
+        self.input_recherche_produit.setFixedHeight(40)
+        self.input_recherche_produit.setStyleSheet("font-size: 13pt;")
+        layout_produit.addWidget(self.input_recherche_produit)
 
-        self.btn_nouvelle_categorie = QPushButton("+ Nouvelle categorie")
-        self.btn_nouvelle_categorie.setProperty("class", "btn-primary")
-        self.btn_nouvelle_categorie.setMaximumWidth(180)
+        # Widget de résultats (cards produits)
+        self.widget_resultats_produits = SearchProductsWidget()
+        self.widget_resultats_produits.setVisible(False)
+        layout_produit.addWidget(self.widget_resultats_produits)
 
-        layout_categorie.addWidget(label_categorie)
-        layout_categorie.addWidget(self.combo_categorie)
-        layout_categorie.addWidget(self.btn_nouvelle_categorie)
-        layout_produit.addLayout(layout_categorie)
-
-        # Ligne 2 : Produit
-        layout_produit_row = QHBoxLayout()
-        label_produit = QLabel("Produit :")
-        self.combo_produit = QComboBox()
-        self.combo_produit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
-        self.btn_nouveau_produit = QPushButton("+ Nouveau produit")
-        self.btn_nouveau_produit.setProperty("class", "btn-primary")
-        self.btn_nouveau_produit.setMaximumWidth(180)
-
-        layout_produit_row.addWidget(label_produit)
-        layout_produit_row.addWidget(self.combo_produit)
-        layout_produit_row.addWidget(self.btn_nouveau_produit)
-        layout_produit.addLayout(layout_produit_row)
+        # Label produit sélectionné
+        self.label_produit_selectionne = QLabel("Aucun produit sélectionné")
+        self.label_produit_selectionne.setStyleSheet(
+            "QLabel {"
+            "    font-size: 12pt;"
+            "    color: #666;"
+            "    padding: 10px;"
+            "    background-color: #E3F2FD;"
+            "    border-radius: 6px;"
+            "    border: 2px solid #2196F3;"
+            "}"
+        )
+        layout_produit.addWidget(self.label_produit_selectionne)
 
         # Label de stock
-        self.label_stock = QLabel("\U0001F4E6 Stock : \u2014")
+        self.label_stock = QLabel("📦 Stock : —")
         self.label_stock.setStyleSheet(
             "QLabel {"
             "    font-size: 12pt;"
@@ -445,17 +446,13 @@ class VenteView(QWidget):
         )
         self._btn_changer_client.clicked.connect(self._deselectionner_client)
 
-        # Categorie / Produit
-        self.combo_categorie.currentIndexChanged.connect(
-            self._on_categorie_change
+        # Recherche produit (cards)
+        self.input_recherche_produit.textChanged.connect(
+            self._on_recherche_produit
         )
-        self.combo_produit.currentIndexChanged.connect(
-            self._on_produit_change
+        self.widget_resultats_produits.produit_selected.connect(
+            self._on_produit_selectionne
         )
-
-        # Creation categorie / produit
-        self.btn_nouvelle_categorie.clicked.connect(self._creer_categorie)
-        self.btn_nouveau_produit.clicked.connect(self._creer_produit)
 
         # Calcul du sous-total article
         self.spin_quantite.valueChanged.connect(self._calculer_sous_total)
@@ -568,17 +565,18 @@ class VenteView(QWidget):
 
     def _ajouter_article(self):
         """Ajoute l'article actuel a la liste des articles."""
-        produit_id = self.combo_produit.currentData()
-        if not produit_id:
+        if not self._produit_selectionne:
             QMessageBox.warning(
                 self, "Attention", "Veuillez selectionner un produit."
             )
             return
 
+        produit_id = self._produit_selectionne.get('id')
+        produit_nom = self._produit_selectionne.get('nom', '')
+
         quantite = self.spin_quantite.value()
         prix_unitaire = self.spin_prix.value()
         total = quantite * prix_unitaire
-        produit_nom = self.combo_produit.currentText()
 
         # Stocker les donnees
         article = {
@@ -784,6 +782,77 @@ class VenteView(QWidget):
         self.input_recherche_client.setVisible(True)
         self.input_recherche_client.setFocus()
         self.label_client_selectionne.setText("")
+
+    # ------------------------------------------------------------------ #
+    #                   Gestion de la recherche produit                   #
+    # ------------------------------------------------------------------ #
+
+    def _on_recherche_produit(self, texte: str):
+        """Callback quand le texte de recherche produit change."""
+        if len(texte) < 2:
+            self.widget_resultats_produits.vider()
+            self.widget_resultats_produits.setVisible(False)
+            return
+
+        # Rechercher les produits
+        produits = self.viewmodel.rechercher_produits_avance(texte)
+
+        # Afficher les résultats
+        if produits:
+            self.widget_resultats_produits.afficher_produits(
+                produits, search_terms=[texte]
+            )
+            self.widget_resultats_produits.setVisible(True)
+        else:
+            self.widget_resultats_produits.vider()
+            self.widget_resultats_produits.setVisible(False)
+
+    def _on_produit_selectionne(self, produit_id: int):
+        """Callback quand un produit est sélectionné via une card."""
+        # Récupérer les détails du produit depuis la recherche
+        produits = self.viewmodel.rechercher_produits_avance(
+            self.input_recherche_produit.text()
+        )
+
+        for p in produits:
+            if p.get('id') == produit_id:
+                self._produit_selectionne = p
+                break
+
+        if not self._produit_selectionne:
+            return
+
+        # Afficher le produit sélectionné
+        nom = self._produit_selectionne.get('nom', '')
+        prix = self._produit_selectionne.get('prix', 0.0)
+        stock = self._produit_selectionne.get('stock', 0)
+
+        self.label_produit_selectionne.setText(
+            f"Produit : {nom} - {prix:.2f} EUR"
+        )
+
+        # Afficher le stock
+        color = "#4CAF50" if stock > 10 else ("#FF9800" if stock > 0 else "#F44336")
+        self.label_stock.setStyleSheet(
+            f"QLabel {{"
+            f"    font-size: 12pt;"
+            f"    color: {color};"
+            f"    font-weight: 600;"
+            f"    padding: 10px;"
+            f"    background-color: #F5F5F5;"
+            f"    border-radius: 6px;"
+            f"}}"
+        )
+        self.label_stock.setText(f"📦 Stock : {stock}")
+
+        # Pré-remplir le prix
+        self.spin_prix.setValue(prix)
+
+        # Masquer les résultats
+        self.widget_resultats_produits.setVisible(False)
+        self.input_recherche_produit.blockSignals(True)
+        self.input_recherche_produit.clear()
+        self.input_recherche_produit.blockSignals(False)
 
     # ------------------------------------------------------------------ #
     #                   Creation categorie / produit                      #
