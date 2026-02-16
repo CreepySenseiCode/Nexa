@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS mails_enregistres (
     contenu_html TEXT NOT NULL,
     contenu_texte TEXT,
     pieces_jointes TEXT,
+    type TEXT DEFAULT 'template',
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -580,6 +581,7 @@ class DatabaseManager:
             ("produits", "stock", "INTEGER DEFAULT 0"),
             ("produits", "archive", "INTEGER DEFAULT 0"),
             ("produits", "photo", "TEXT"),
+            ("mails_enregistres", "type", "TEXT DEFAULT 'template'"),
         ]
         for table, colonne, type_col in migrations:
             try:
