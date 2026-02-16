@@ -73,9 +73,16 @@ class CalendrierView(QWidget):
         self._btn_jour.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_jour.clicked.connect(lambda: self._changer_vue("jour"))
 
+        self._btn_annee = QPushButton("Année")
+        self._btn_annee.setCheckable(True)
+        self._btn_annee.setStyleSheet(view_btn_style)
+        self._btn_annee.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_annee.clicked.connect(lambda: self._changer_vue("annee"))
+
         header_layout.addWidget(self._btn_mois)
         header_layout.addWidget(self._btn_semaine)
         header_layout.addWidget(self._btn_jour)
+        header_layout.addWidget(self._btn_annee)
 
         header_layout.addStretch()
 
@@ -169,6 +176,8 @@ class CalendrierView(QWidget):
             self._label_mois.setText(
                 f"{jour_nom} {self.current_date.strftime('%d/%m/%Y')}"
             )
+        elif self._vue_courante == "annee":
+            self._label_mois.setText(str(self.current_date.year))
 
     # ------------------------------------------------------------------ #
     #                       Navigation                                    #
@@ -194,6 +203,10 @@ class CalendrierView(QWidget):
             self.current_date -= timedelta(weeks=1)
         elif self._vue_courante == "jour":
             self.current_date -= timedelta(days=1)
+        elif self._vue_courante == "annee":
+            self.current_date = self.current_date.replace(
+                year=self.current_date.year - 1
+            )
 
         self._maj_label_titre()
         self._rafraichir_vue()
@@ -213,6 +226,10 @@ class CalendrierView(QWidget):
             self.current_date += timedelta(weeks=1)
         elif self._vue_courante == "jour":
             self.current_date += timedelta(days=1)
+        elif self._vue_courante == "annee":
+            self.current_date = self.current_date.replace(
+                year=self.current_date.year + 1
+            )
 
         self._maj_label_titre()
         self._rafraichir_vue()
@@ -221,6 +238,7 @@ class CalendrierView(QWidget):
         self._btn_mois.setChecked(vue == "mois")
         self._btn_semaine.setChecked(vue == "semaine")
         self._btn_jour.setChecked(vue == "jour")
+        self._btn_annee.setChecked(vue == "annee")
         self._vue_courante = vue
         self._maj_label_titre()
         self._rafraichir_vue()
@@ -236,7 +254,10 @@ class CalendrierView(QWidget):
         elif self._vue_courante == "semaine":
             debut = self.current_date - timedelta(days=self.current_date.weekday())
             fin = debut + timedelta(days=6)
-        else:
+        elif self._vue_courante == "annee":
+            debut = datetime(self.current_date.year, 1, 1)
+            fin = datetime(self.current_date.year, 12, 31)
+        else:  # jour
             debut = self.current_date
             fin = self.current_date
         self.voir_stats_periode.emit(
@@ -251,6 +272,8 @@ class CalendrierView(QWidget):
             self._afficher_vue_semaine()
         elif self._vue_courante == "jour":
             self._afficher_vue_jour()
+        elif self._vue_courante == "annee":
+            self._afficher_vue_annee()
 
     # ------------------------------------------------------------------ #
     #                       Vue Mois                                      #
@@ -609,6 +632,134 @@ class CalendrierView(QWidget):
                 100,
                 lambda: scroll.verticalScrollBar().setValue(current_hour * 80),
             )
+
+    # ------------------------------------------------------------------ #
+    #                       Vue Année                                     #
+    # ------------------------------------------------------------------ #
+
+    def _afficher_vue_annee(self):
+        """Affiche la vue année avec une grille 3x4 (12 mois)."""
+        self._vider_layout(self._calendar_layout)
+
+        # Créer une grille 3 lignes x 4 colonnes
+        grid = QGridLayout()
+        grid.setSpacing(10)
+
+        for mois_idx in range(1, 13):
+            mini_cal = self._creer_mini_calendrier(self.current_date.year, mois_idx)
+            row = (mois_idx - 1) // 4
+            col = (mois_idx - 1) % 4
+            grid.addWidget(mini_cal, row, col)
+
+        grid_widget = QWidget()
+        grid_widget.setLayout(grid)
+        self._calendar_layout.addWidget(grid_widget)
+
+    def _creer_mini_calendrier(self, annee: int, mois: int) -> QFrame:
+        """Crée un mini calendrier pour un mois donné.
+
+        Args:
+            annee: Année du calendrier
+            mois: Mois (1-12)
+
+        Returns:
+            QFrame contenant le mini calendrier
+        """
+        frame = QFrame()
+        frame.setFrameShape(QFrame.Shape.StyledPanel)
+        frame.setStyleSheet(
+            "QFrame {"
+            "    background-color: white;"
+            "    border: 2px solid #9E9E9E;"
+            "    border-radius: 8px;"
+            "    padding: 10px;"
+            "}"
+        )
+
+        layout = QVBoxLayout(frame)
+        layout.setSpacing(5)
+
+        # Titre du mois
+        titre = QLabel(self._MOIS_FR[mois - 1])
+        titre.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        titre.setStyleSheet(
+            "font-size: 11pt; font-weight: bold; color: #2196F3; border: none;"
+        )
+        layout.addWidget(titre)
+
+        # En-têtes des jours (Lu Ma Me Je Ve Sa Di)
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(2)
+        jours_abbr = ["L", "M", "M", "J", "V", "S", "D"]
+        for jour in jours_abbr:
+            label = QLabel(jour)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setStyleSheet(
+                "font-size: 8pt; font-weight: bold; color: #666; border: none;"
+            )
+            label.setFixedSize(24, 20)
+            header_layout.addWidget(label)
+        layout.addLayout(header_layout)
+
+        # Grille des jours
+        cal = calendar.monthcalendar(annee, mois)
+        for week in cal:
+            week_layout = QHBoxLayout()
+            week_layout.setSpacing(2)
+
+            for day in week:
+                if day == 0:
+                    # Jour vide
+                    empty = QLabel("")
+                    empty.setFixedSize(24, 24)
+                    week_layout.addWidget(empty)
+                else:
+                    day_label = QLabel(str(day))
+                    day_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    day_label.setFixedSize(24, 24)
+
+                    # Vérifier si c'est aujourd'hui
+                    now = datetime.now()
+                    is_today = (
+                        day == now.day
+                        and mois == now.month
+                        and annee == now.year
+                    )
+
+                    if is_today:
+                        day_label.setStyleSheet(
+                            "QLabel {"
+                            "    background-color: #2196F3;"
+                            "    color: white;"
+                            "    border-radius: 12px;"
+                            "    font-size: 9pt;"
+                            "    font-weight: bold;"
+                            "    border: none;"
+                            "}"
+                        )
+                    else:
+                        day_label.setStyleSheet(
+                            "QLabel {"
+                            "    color: #333;"
+                            "    font-size: 9pt;"
+                            "    border: none;"
+                            "}"
+                        )
+
+                    week_layout.addWidget(day_label)
+
+            layout.addLayout(week_layout)
+
+        # Rendre le mini calendrier cliquable pour basculer vers le mois
+        frame.setCursor(Qt.CursorShape.PointingHandCursor)
+        frame.mousePressEvent = lambda e, m=mois: self._on_mini_calendrier_clic(m)
+
+        return frame
+
+    def _on_mini_calendrier_clic(self, mois: int):
+        """Gère le clic sur un mini calendrier : bascule vers la vue mois."""
+        self.current_date = self.current_date.replace(month=mois, day=1)
+        self._changer_vue("mois")
 
     # ------------------------------------------------------------------ #
     #                       Utilitaires                                   #
