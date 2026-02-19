@@ -10,6 +10,9 @@ import os
 from collections import defaultdict
 from datetime import datetime
 from typing import Optional
+from PySide6.QtCore import QPropertyAnimation, QEasingCurve, QRect, QTimer, Qt
+from PySide6.QtWidgets import QFrame
+from views.components.modern_segmented_control import ModernSegmentedControl
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -34,14 +37,29 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QPixmap, QPainter, QPainterPath, QLinearGradient, QColor
+from PySide6.QtGui import (
+    QFont,
+    QPixmap,
+    QPainter,
+    QPainterPath,
+    QLinearGradient,
+    QColor,
+)
 
 from viewmodels.recherche_vm import RechercheViewModel
 from viewmodels.produits_vm import ProduitsViewModel
 from views.client_card import SearchResultsWidget
 from views.fiche_produit_view import FicheProduitView
 from views.codes_promo_recherche_view import CodesPromoRechercheView
-from utils.styles import style_groupe, style_scroll_area, style_onglet, style_toggle, style_input, style_bouton, Couleurs
+from utils.styles import (
+    style_groupe,
+    style_scroll_area,
+    style_onglet,
+    style_toggle,
+    style_input,
+    style_bouton,
+    Couleurs,
+)
 
 
 class RechercheView(QWidget):
@@ -55,8 +73,17 @@ class RechercheView(QWidget):
     MODE_PRODUIT = 1
     MODE_CODE_PROMO = 2
 
+    COULEUR_BLEU = "#007AFF"
+    COULEUR_FOND = "#F2F2F7"
+    COULEUR_BLEU_HOVER = "rgba(0, 122, 255, 0.12)"
+    COULEUR_BORDER = "#E5E5EA"
+    COULEUR_TEXTE = "#1D1D1F"
+    COULEUR_BLANC = "#FFFFFF"
+
     def __init__(self, viewmodel=None):
         super().__init__()
+
+        self._mode_actuel = self.MODE_CLIENT  # Par défaut
 
         self.viewmodel = viewmodel if viewmodel is not None else RechercheViewModel()
         self._client_id: int = 0
@@ -72,35 +99,26 @@ class RechercheView(QWidget):
     def _construire_ui(self):
         """Construit l'interface complete de l'onglet Recherche."""
         layout_principal = QVBoxLayout(self)
-        layout_principal.setContentsMargins(0, 0, 0, 0)
-        layout_principal.setSpacing(0)
+        layout_principal.setContentsMargins(24, 24, 24, 16)
+        layout_principal.setSpacing(16)
 
-        # === BARRE DE TOGGLE ===
-        self._barre_toggle = QWidget()
-        self._barre_toggle.setStyleSheet(f"background-color: {Couleurs.BLANC};")
-        toggle_layout = QHBoxLayout(self._barre_toggle)
-        toggle_layout.setContentsMargins(20, 15, 20, 0)
-        toggle_layout.setSpacing(10)
+        # === BARRE TOGGLE FINAL ===
+        self._mode_actuel = -1  # Force le changement de mode
 
-        toggle_layout.addStretch()
+        # === SEGMENTED CONTROL ===
+        self._barre_toggle = ModernSegmentedControl(["Client", "Produit", "Code Promo"])
+        self._barre_toggle.selectionChanged.connect(self._changer_mode)
 
-        self.btn_mode_client = QPushButton("Client")
-        self.btn_mode_client.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_mode_client.clicked.connect(lambda: self._changer_mode(self.MODE_CLIENT))
+        # Garder des références aux boutons pour compatibilité
+        self.btn_mode_client = self._barre_toggle.buttons[0]
+        self.btn_mode_produit = self._barre_toggle.buttons[1]
+        self.btn_mode_code = self._barre_toggle.buttons[2]
 
-        self.btn_mode_produit = QPushButton("Produit")
-        self.btn_mode_produit.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_mode_produit.clicked.connect(lambda: self._changer_mode(self.MODE_PRODUIT))
-
-        self.btn_mode_code = QPushButton("Code Promo")
-        self.btn_mode_code.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_mode_code.clicked.connect(lambda: self._changer_mode(self.MODE_CODE_PROMO))
-
-        toggle_layout.addWidget(self.btn_mode_client)
-        toggle_layout.addWidget(self.btn_mode_produit)
-        toggle_layout.addWidget(self.btn_mode_code)
-
-        layout_principal.addWidget(self._barre_toggle)
+        layout_haut = QHBoxLayout()
+        layout_haut.addStretch(1)
+        layout_haut.addWidget(self._barre_toggle)
+        layout_haut.addStretch(1)
+        layout_principal.addLayout(layout_haut)
 
         # === STACKED WIDGET ===
         self._pile_modes = QStackedWidget()
@@ -118,9 +136,7 @@ class RechercheView(QWidget):
         layout_recherche.setSpacing(15)
 
         self.input_recherche = QLineEdit()
-        self.input_recherche.setPlaceholderText(
-            "Nom, prenom, email, telephone..."
-        )
+        self.input_recherche.setPlaceholderText("Nom, prenom, email, telephone...")
         self.input_recherche.setStyleSheet(
             "QLineEdit {"
             "    min-height: 50px; font-size: 14pt; padding: 10px;"
@@ -254,8 +270,12 @@ class RechercheView(QWidget):
         self._table_produits.setHorizontalHeaderLabels(
             ["Nom", "Categorie", "Prix", "Stock"]
         )
-        self._table_produits.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._table_produits.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table_produits.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self._table_produits.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
         self._table_produits.verticalHeader().setVisible(False)
         self._table_produits.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.Stretch
@@ -288,15 +308,15 @@ class RechercheView(QWidget):
     # ------------------------------------------------------------------
 
     def _changer_mode(self, mode: int):
-        """Change le mode du toggle (Client/Produit/Code Promo)."""
-        self._pile_modes.setCurrentIndex(mode)
-        boutons = [self.btn_mode_client, self.btn_mode_produit, self.btn_mode_code]
-        for i, btn in enumerate(boutons):
-            btn.setStyleSheet(style_toggle(i == mode))
+        if self._mode_actuel == mode:
+            return
+        self._mode_actuel = mode
 
-        # Rafraichir la table produits quand on passe en mode produit
-        if mode == self.MODE_PRODUIT:
-            self._rafraichir_table_produits(self._input_recherche_produit.text())
+        # Synchroniser le segmented control si appelé programmatiquement
+        if self._barre_toggle.current_index != mode:
+            self._barre_toggle.select(mode)
+
+        self._pile_modes.setCurrentIndex(mode)
 
     # ------------------------------------------------------------------
     # Section 2a : En-tête du profil
@@ -325,7 +345,7 @@ class RechercheView(QWidget):
             "QLabel { background-color: rgba(255,255,255,0.2); border-radius: 50px; "
             "font-size: 40pt; color: white; border: 3px solid rgba(255,255,255,0.5); }"
         )
-        self._label_photo_profil.setText("\U0001F464")
+        self._label_photo_profil.setText("\U0001f464")
         layout_header.addWidget(self._label_photo_profil)
 
         # Infos textuelles
@@ -339,13 +359,17 @@ class RechercheView(QWidget):
 
         self._label_client_depuis = QLabel()
         self._label_client_depuis.setFont(QFont("", 11))
-        self._label_client_depuis.setStyleSheet("color: rgba(255,255,255,0.8); border: none;")
+        self._label_client_depuis.setStyleSheet(
+            "color: rgba(255,255,255,0.8); border: none;"
+        )
         layout_texte_header.addWidget(self._label_client_depuis)
 
         # Contact rapide (email + telephone)
         self._label_contact_rapide = QLabel()
         self._label_contact_rapide.setFont(QFont("", 11))
-        self._label_contact_rapide.setStyleSheet("color: rgba(255,255,255,0.9); border: none;")
+        self._label_contact_rapide.setStyleSheet(
+            "color: rgba(255,255,255,0.9); border: none;"
+        )
         self._label_contact_rapide.setWordWrap(True)
         layout_texte_header.addWidget(self._label_contact_rapide)
 
@@ -357,7 +381,9 @@ class RechercheView(QWidget):
 
         self._label_completude = QLabel("Profil :")
         self._label_completude.setFont(QFont("", 9))
-        self._label_completude.setStyleSheet("color: rgba(255,255,255,0.7); border: none;")
+        self._label_completude.setStyleSheet(
+            "color: rgba(255,255,255,0.7); border: none;"
+        )
         layout_completude.addWidget(self._label_completude)
 
         self._barre_completude = QProgressBar()
@@ -373,7 +399,9 @@ class RechercheView(QWidget):
 
         self._label_pourcent = QLabel("0 %")
         self._label_pourcent.setFont(QFont("", 9, QFont.Weight.Bold))
-        self._label_pourcent.setStyleSheet("color: rgba(255,255,255,0.9); border: none;")
+        self._label_pourcent.setStyleSheet(
+            "color: rgba(255,255,255,0.9); border: none;"
+        )
         layout_completude.addWidget(self._label_pourcent)
 
         layout_texte_header.addLayout(layout_completude)
@@ -388,7 +416,7 @@ class RechercheView(QWidget):
 
     def _creer_section_infos(self):
         """Cree la section Informations personnelles avec style moderne."""
-        self._group_infos = QGroupBox("\U0001F464  Informations personnelles")
+        self._group_infos = QGroupBox("\U0001f464  Informations personnelles")
         font_section = QFont()
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
@@ -401,7 +429,7 @@ class RechercheView(QWidget):
         self._layout_profil.addWidget(self._group_infos)
 
         # Section Adresse
-        self._group_adresse = QGroupBox("\U0001F3E0  Adresse")
+        self._group_adresse = QGroupBox("\U0001f3e0  Adresse")
         self._group_adresse.setFont(font_section)
         self._group_adresse.setStyleSheet(style_groupe())
         self._layout_adresse = QVBoxLayout()
@@ -422,7 +450,7 @@ class RechercheView(QWidget):
         self._layout_profil.addWidget(self._group_interets)
 
         # Section Notes
-        self._group_notes = QGroupBox("\U0001F4DD  Notes")
+        self._group_notes = QGroupBox("\U0001f4dd  Notes")
         self._group_notes.setFont(font_section)
         self._group_notes.setStyleSheet(style_groupe())
         self._layout_notes = QVBoxLayout()
@@ -444,7 +472,7 @@ class RechercheView(QWidget):
 
     def _creer_section_relations(self):
         """Cree la section Relations (conjoint, enfants, parents)."""
-        self._group_relations = QGroupBox("\U0001F46A  Relations")
+        self._group_relations = QGroupBox("\U0001f46a  Relations")
         font_section = QFont()
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
@@ -461,7 +489,7 @@ class RechercheView(QWidget):
 
     def _creer_section_stats(self):
         """Cree la section Statistiques d'achat avec style moderne."""
-        self._group_stats = QGroupBox("\U0001F4CA  Statistiques d'achat")
+        self._group_stats = QGroupBox("\U0001f4ca  Statistiques d'achat")
         font_section = QFont()
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
@@ -478,7 +506,7 @@ class RechercheView(QWidget):
 
     def _creer_section_graphiques(self):
         """Cree la section Graphiques avec deux charts Plotly."""
-        self._group_graphiques = QGroupBox("\U0001F4C8  Analyse des achats")
+        self._group_graphiques = QGroupBox("\U0001f4c8  Analyse des achats")
         font_section = QFont()
         font_section.setPointSize(13)
         font_section.setWeight(QFont.Weight.DemiBold)
@@ -488,7 +516,9 @@ class RechercheView(QWidget):
         self._layout_graphiques.setSpacing(15)
 
         # Placeholder initial
-        label_graphiques = QLabel("S\u00e9lectionnez un client pour voir les graphiques")
+        label_graphiques = QLabel(
+            "S\u00e9lectionnez un client pour voir les graphiques"
+        )
         label_graphiques.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label_graphiques.setStyleSheet(
             "color: #999999; font-style: italic; font-size: 12pt; padding: 20px;"
@@ -505,6 +535,7 @@ class RechercheView(QWidget):
     def _make_chart_view(self):
         """Cr\u00e9e un QWebEngineView configur\u00e9 pour les graphiques."""
         from PySide6.QtWebEngineWidgets import QWebEngineView
+
         view = QWebEngineView()
         view.setMinimumHeight(380)
         view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -516,65 +547,81 @@ class RechercheView(QWidget):
             import plotly.graph_objects as go
         except ImportError:
             view = self._make_chart_view()
-            view.setHtml("<div style='text-align:center;padding:40px;color:#F44336;'>Plotly non install\u00e9</div>")
+            view.setHtml(
+                "<div style='text-align:center;padding:40px;color:#F44336;'>Plotly non install\u00e9</div>"
+            )
             return view
 
         ventes = self.viewmodel.obtenir_depenses_client(client_id)
 
         if not ventes:
             view = self._make_chart_view()
-            view.setHtml("""
+            view.setHtml(
+                """
                 <div style='text-align:center;padding:60px;font-family:Arial;color:#999;'>
                     <h3>Aucune vente enregistr\u00e9e</h3>
                 </div>
-            """)
+            """
+            )
             return view
 
         depenses_par_mois = defaultdict(float)
         for vente in ventes:
             try:
-                date_str = str(vente['date_vente'])
-                if ' ' in date_str:
-                    date_str = date_str.split(' ')[0]
-                dt = datetime.strptime(date_str, '%Y-%m-%d')
-                mois = dt.strftime('%Y-%m')
-                depenses_par_mois[mois] += vente['prix_total']
+                date_str = str(vente["date_vente"])
+                if " " in date_str:
+                    date_str = date_str.split(" ")[0]
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+                mois = dt.strftime("%Y-%m")
+                depenses_par_mois[mois] += vente["prix_total"]
             except Exception:
                 continue
 
         if not depenses_par_mois:
             view = self._make_chart_view()
-            view.setHtml("<div style='text-align:center;padding:40px;color:#999;'>Aucune donn\u00e9e valide</div>")
+            view.setHtml(
+                "<div style='text-align:center;padding:40px;color:#999;'>Aucune donn\u00e9e valide</div>"
+            )
             return view
 
         mois = sorted(depenses_par_mois.keys())
         montants = [depenses_par_mois[m] for m in mois]
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=mois, y=montants,
-            mode='lines+markers', name='D\u00e9penses',
-            line=dict(color='#2196F3', width=3),
-            marker=dict(size=10, color='#2196F3'),
-            fill='tozeroy', fillcolor='rgba(33, 150, 243, 0.2)',
-            hovertemplate='<b>%{x}</b><br>D\u00e9penses: %{y:.2f} \u20ac<extra></extra>',
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=mois,
+                y=montants,
+                mode="lines+markers",
+                name="D\u00e9penses",
+                line=dict(color="#2196F3", width=3),
+                marker=dict(size=10, color="#2196F3"),
+                fill="tozeroy",
+                fillcolor="rgba(33, 150, 243, 0.2)",
+                hovertemplate="<b>%{x}</b><br>D\u00e9penses: %{y:.2f} \u20ac<extra></extra>",
+            )
+        )
         fig.update_layout(
             title=dict(
                 text="\u00c9volution des d\u00e9penses",
-                font=dict(size=16, color='#1976D2', family='Arial'),
-                x=0.5, xanchor='center',
+                font=dict(size=16, color="#1976D2", family="Arial"),
+                x=0.5,
+                xanchor="center",
             ),
-            xaxis_title="Mois", yaxis_title="Montant (\u20ac)",
-            hovermode='x unified', template='plotly_white',
-            height=380, margin=dict(l=50, r=50, t=80, b=50),
+            xaxis_title="Mois",
+            yaxis_title="Montant (\u20ac)",
+            hovermode="x unified",
+            template="plotly_white",
+            height=380,
+            margin=dict(l=50, r=50, t=80, b=50),
         )
 
         from utils.plotly_render import plotly_to_html
+
         view = self._make_chart_view()
         view.setHtml(plotly_to_html(fig))
 
-        if not hasattr(self, '_charts'):
+        if not hasattr(self, "_charts"):
             self._charts = []
         self._charts.append(view)
 
@@ -586,49 +633,72 @@ class RechercheView(QWidget):
             import plotly.graph_objects as go
         except ImportError:
             view = self._make_chart_view()
-            view.setHtml("<div style='text-align:center;padding:40px;color:#F44336;'>Plotly non install\u00e9</div>")
+            view.setHtml(
+                "<div style='text-align:center;padding:40px;color:#F44336;'>Plotly non install\u00e9</div>"
+            )
             return view
 
         categories = self.viewmodel.obtenir_repartition_categories(client_id)
 
         if not categories:
             view = self._make_chart_view()
-            view.setHtml("""
+            view.setHtml(
+                """
                 <div style='text-align:center;padding:60px;font-family:Arial;color:#999;'>
                     <h3>Aucune cat\u00e9gorie</h3>
                 </div>
-            """)
+            """
+            )
             return view
 
-        noms = [c['categorie'] for c in categories]
-        totaux = [c['total'] for c in categories]
+        noms = [c["categorie"] for c in categories]
+        totaux = [c["total"] for c in categories]
 
-        couleurs = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548']
+        couleurs = [
+            "#2196F3",
+            "#4CAF50",
+            "#FF9800",
+            "#F44336",
+            "#9C27B0",
+            "#00BCD4",
+            "#FFEB3B",
+            "#795548",
+        ]
 
         fig = go.Figure()
-        fig.add_trace(go.Pie(
-            labels=noms, values=totaux, hole=0.4,
-            marker=dict(colors=couleurs[:len(noms)]),
-            textinfo='label+percent', textposition='auto',
-            hovertemplate='<b>%{label}</b><br>Montant: %{value:.2f} \u20ac<br>Part: %{percent}<extra></extra>',
-        ))
+        fig.add_trace(
+            go.Pie(
+                labels=noms,
+                values=totaux,
+                hole=0.4,
+                marker=dict(colors=couleurs[: len(noms)]),
+                textinfo="label+percent",
+                textposition="auto",
+                hovertemplate="<b>%{label}</b><br>Montant: %{value:.2f} \u20ac<br>Part: %{percent}<extra></extra>",
+            )
+        )
         fig.update_layout(
             title=dict(
                 text="R\u00e9partition par cat\u00e9gorie",
-                font=dict(size=16, color='#1976D2', family='Arial'),
-                x=0.5, xanchor='center',
+                font=dict(size=16, color="#1976D2", family="Arial"),
+                x=0.5,
+                xanchor="center",
             ),
-            template='plotly_white', height=380,
+            template="plotly_white",
+            height=380,
             margin=dict(l=20, r=20, t=80, b=20),
             showlegend=True,
-            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05),
+            legend=dict(
+                orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05
+            ),
         )
 
         from utils.plotly_render import plotly_to_html
+
         view = self._make_chart_view()
         view.setHtml(plotly_to_html(fig))
 
-        if not hasattr(self, '_charts'):
+        if not hasattr(self, "_charts"):
             self._charts = []
         self._charts.append(view)
 
@@ -835,6 +905,7 @@ class RechercheView(QWidget):
             Pourcentage de complétude (0-100).
         """
         from utils.profile_completion import calculer_completion
+
         return calculer_completion(profil)
 
     def _remplir_infos(self, profil: dict):
@@ -883,13 +954,17 @@ class RechercheView(QWidget):
             label_champ = QLabel(f"{label} :")
             label_champ.setFont(QFont("", 11, QFont.Weight.Bold))
             label_champ.setStyleSheet("color: #333333; border: none;")
-            self._layout_infos.addWidget(label_champ, ligne, 0, Qt.AlignmentFlag.AlignTop)
+            self._layout_infos.addWidget(
+                label_champ, ligne, 0, Qt.AlignmentFlag.AlignTop
+            )
 
             label_valeur = QLabel(str(valeur))
             label_valeur.setFont(QFont("", 11))
             label_valeur.setStyleSheet("color: #555555; border: none;")
             label_valeur.setWordWrap(True)
-            self._layout_infos.addWidget(label_valeur, ligne, 1, Qt.AlignmentFlag.AlignTop)
+            self._layout_infos.addWidget(
+                label_valeur, ligne, 1, Qt.AlignmentFlag.AlignTop
+            )
 
             ligne += 1
 
@@ -926,11 +1001,21 @@ class RechercheView(QWidget):
         centre_interet = profil.get("centre_interet") or ""
         if centre_interet.strip():
             self._group_interets.setVisible(True)
-            tags = [t.strip() for t in centre_interet.replace(";", ",").split(",") if t.strip()]
+            tags = [
+                t.strip()
+                for t in centre_interet.replace(";", ",").split(",")
+                if t.strip()
+            ]
 
             couleurs_tags = [
-                "#2196F3", "#4CAF50", "#FF9800", "#9C27B0",
-                "#00BCD4", "#F44336", "#795548", "#607D8B",
+                "#2196F3",
+                "#4CAF50",
+                "#FF9800",
+                "#9C27B0",
+                "#00BCD4",
+                "#F44336",
+                "#795548",
+                "#607D8B",
             ]
 
             for i, tag in enumerate(tags):
@@ -985,7 +1070,9 @@ class RechercheView(QWidget):
             label_conjoint.setStyleSheet("color: #333333;")
             self._layout_relations.addWidget(label_conjoint)
 
-            nom_conjoint = f"{(conjoint.get('nom') or '').upper()} {conjoint.get('prenom') or ''}"
+            nom_conjoint = (
+                f"{(conjoint.get('nom') or '').upper()} {conjoint.get('prenom') or ''}"
+            )
             btn_conjoint = QPushButton(nom_conjoint.strip())
             btn_conjoint.setStyleSheet(
                 "QPushButton { color: #2196F3; text-decoration: underline; "
@@ -1008,7 +1095,9 @@ class RechercheView(QWidget):
             self._layout_relations.addWidget(label_enfants)
 
             for enfant in enfants:
-                nom_enfant = f"{(enfant.get('nom') or '').upper()} {enfant.get('prenom') or ''}"
+                nom_enfant = (
+                    f"{(enfant.get('nom') or '').upper()} {enfant.get('prenom') or ''}"
+                )
                 btn_enfant = QPushButton(nom_enfant.strip())
                 btn_enfant.setStyleSheet(
                     "QPushButton { color: #2196F3; text-decoration: underline; "
@@ -1031,7 +1120,9 @@ class RechercheView(QWidget):
             self._layout_relations.addWidget(label_parents)
 
             for parent in parents:
-                nom_parent = f"{(parent.get('nom') or '').upper()} {parent.get('prenom') or ''}"
+                nom_parent = (
+                    f"{(parent.get('nom') or '').upper()} {parent.get('prenom') or ''}"
+                )
                 btn_parent = QPushButton(nom_parent.strip())
                 btn_parent.setStyleSheet(
                     "QPushButton { color: #2196F3; text-decoration: underline; "
@@ -1182,11 +1273,9 @@ class RechercheView(QWidget):
         symbole = self._symbole_monnaie
 
         for i, p in enumerate(produits):
+            self._table_produits.setItem(i, 0, QTableWidgetItem(p.get("nom", "")))
             self._table_produits.setItem(
-                i, 0, QTableWidgetItem(p.get('nom', ''))
-            )
-            self._table_produits.setItem(
-                i, 1, QTableWidgetItem(p.get('categorie_nom', 'Sans categorie'))
+                i, 1, QTableWidgetItem(p.get("categorie_nom", "Sans categorie"))
             )
 
             item_prix = QTableWidgetItem(f"{p.get('prix', 0):.2f} {symbole}")
@@ -1195,7 +1284,7 @@ class RechercheView(QWidget):
             )
             self._table_produits.setItem(i, 2, item_prix)
 
-            stock = p.get('stock', 0) or 0
+            stock = p.get("stock", 0) or 0
             item_stock = QTableWidgetItem(str(stock))
             item_stock.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if stock == 0:
@@ -1204,7 +1293,7 @@ class RechercheView(QWidget):
                 item_stock.setForeground(QColor(Couleurs.AVERTISSEMENT))
             self._table_produits.setItem(i, 3, item_stock)
 
-        self._produits_ids = [p.get('id') for p in produits]
+        self._produits_ids = [p.get("id") for p in produits]
 
     def _on_produit_double_clic(self, index):
         """Ouvre la fiche produit quand on double-clique sur une ligne."""
@@ -1298,7 +1387,9 @@ class RechercheView(QWidget):
                 date_vente = self._formater_date(date_vente)
             table.setItem(i, 0, QTableWidgetItem(date_vente))
 
-            nom_produit = vente.get("nom_produit", vente.get("produit_nom", vente.get("nom", "")))
+            nom_produit = vente.get(
+                "nom_produit", vente.get("produit_nom", vente.get("nom", ""))
+            )
             table.setItem(i, 1, QTableWidgetItem(nom_produit))
 
             quantite = vente.get("quantite", 0)
@@ -1308,21 +1399,23 @@ class RechercheView(QWidget):
 
             prix_unit = vente.get("prix_unitaire", 0)
             item_pu = QTableWidgetItem(f"{prix_unit:.2f} {self._symbole_monnaie}")
-            item_pu.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item_pu.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
             table.setItem(i, 3, item_pu)
 
             prix_total = vente.get("prix_total", 0)
             item_pt = QTableWidgetItem(f"{prix_total:.2f} {self._symbole_monnaie}")
-            item_pt.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item_pt.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
             table.setItem(i, 4, item_pt)
 
         layout.addWidget(table)
 
         # --- Total général ---
         montant_total = sum(v.get("prix_total", 0) for v in ventes)
-        label_total = QLabel(
-            f"Total : {montant_total:.2f} {self._symbole_monnaie}"
-        )
+        label_total = QLabel(f"Total : {montant_total:.2f} {self._symbole_monnaie}")
         label_total.setFont(QFont("", 14, QFont.Weight.Bold))
         label_total.setAlignment(Qt.AlignmentFlag.AlignRight)
         layout.addWidget(label_total)
@@ -1375,12 +1468,16 @@ class RechercheView(QWidget):
         try:
             with open(chemin, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.writer(f, delimiter=";")
-                writer.writerow(["Date", "Produit", "Quantite", "Prix unitaire", "Prix total"])
+                writer.writerow(
+                    ["Date", "Produit", "Quantite", "Prix unitaire", "Prix total"]
+                )
                 for vente in ventes:
                     date_v = vente.get("date_vente", "")
                     if date_v:
                         date_v = self._formater_date(date_v)
-                    nom = vente.get("nom_produit", vente.get("produit_nom", vente.get("nom", "")))
+                    nom = vente.get(
+                        "nom_produit", vente.get("produit_nom", vente.get("nom", ""))
+                    )
                     qte = vente.get("quantite", 0)
                     pu = vente.get("prix_unitaire", 0)
                     pt = vente.get("prix_total", 0)
@@ -1391,13 +1488,11 @@ class RechercheView(QWidget):
                 writer.writerow(["", "", "", "TOTAL", f"{montant_total:.2f}"])
 
             QMessageBox.information(
-                self, "Export reussi",
-                f"L'historique a ete exporte vers :\n{chemin}"
+                self, "Export reussi", f"L'historique a ete exporte vers :\n{chemin}"
             )
         except Exception as e:
             QMessageBox.warning(
-                self, "Erreur d'export",
-                f"Impossible d'exporter le fichier :\n{e}"
+                self, "Erreur d'export", f"Impossible d'exporter le fichier :\n{e}"
             )
 
     # ==================================================================
@@ -1413,7 +1508,7 @@ class RechercheView(QWidget):
         if not photo_path or not os.path.exists(photo_path):
             # Remettre l'emoji par defaut
             self._label_photo_profil.setPixmap(QPixmap())
-            self._label_photo_profil.setText("\U0001F464")
+            self._label_photo_profil.setText("\U0001f464")
             self._label_photo_profil.setStyleSheet(
                 "QLabel { background-color: rgba(255,255,255,0.2); border-radius: 50px; "
                 "font-size: 40pt; color: white; border: 3px solid rgba(255,255,255,0.5); }"
@@ -1426,9 +1521,10 @@ class RechercheView(QWidget):
 
         taille = 100
         pixmap = pixmap.scaled(
-            taille, taille,
+            taille,
+            taille,
             Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
 
         # Rogner au centre

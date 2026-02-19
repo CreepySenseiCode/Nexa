@@ -70,3 +70,17 @@ Traceback (most recent call last):
   File "/Users/CreepySensei/Desktop/Dev/MailTo/app/models/database.py", line 494, in fetchall
     cursor = conn.execute(query, params)
 sqlite3.OperationalError: no such column: type
+2026-02-16 14:20:15 - nexa - INFO - main.py:19 - ============================================================
+2026-02-16 14:20:15 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-02-16 14:20:15 - nexa - INFO - main.py:21 - ============================================================
+2026-02-16 14:20:18 - nexa - INFO - main.py:48 - Initialisation de QApplication...
+2026-02-16 14:20:18 - nexa - INFO - main.py:78 - Création de la fenêtre principale...
+2026-02-16 14:20:18 - nexa - INFO - main.py:82 - Création des vues d'onglets...
+2026-02-16 14:20:23 - nexa - INFO - main.py:100 - Configuration des onglets...
+2026-02-16 14:20:23 - nexa - INFO - main.py:145 - Affichage de la fenêtre principale...
+2026-02-16 14:20:23 - nexa - INFO - main.py:151 - Interface chargée, en attente d'interactions utilisateur
+2026-02-16 16:15:51 - nexa - INFO - main.py:128 - Ouverture Statistiques avec période : 2026-02-01 → 2026-02-28
+2026-02-16 16:15:56 - nexa - INFO - main.py:128 - Ouverture Statistiques avec période : 2026-01-01 → 2026-01-31
+2026-02-16 16:16:01 - nexa - INFO - main.py:128 - Ouverture Statistiques avec période : 2025-12-01 → 2025-12-31
+2026-02-16 16:16:07 - nexa - INFO - main.py:128 - Ouverture Statistiques avec période : 2025-12-01 → 2025-12-07
+2026-02-16 16:34:33 - nexa - INFO - main.py:154 - Fermeture de l'application (code: 0)
