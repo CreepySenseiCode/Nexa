@@ -1,0 +1,140 @@
+2026-03-03 00:19:09 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:19:09 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:19:09 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:19:12 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:19:13 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:19:15 - nexa - CRITICAL - main.py:332 - Erreur fatale construction : 'MainWindow' object has no attribute '_sonder_hover_sidebar'
+Traceback (most recent call last):
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/main.py", line 126, in _construire_app
+    fenetre = MainWindow()
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/main_window.py", line 801, in __init__
+    self.construireinterface()
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/main_window.py", line 866, in construireinterface
+    self._hover_poll.timeout.connect(self._sonder_hover_sidebar)
+AttributeError: 'MainWindow' object has no attribute '_sonder_hover_sidebar'
+2026-03-03 00:19:15 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:20:51 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:20:51 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:20:51 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:20:54 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:20:54 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:20:55 - nexa - CRITICAL - main.py:332 - Erreur fatale construction : 'MainWindow' object has no attribute '_sonder_hover_sidebar'
+Traceback (most recent call last):
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/main.py", line 126, in _construire_app
+    fenetre = MainWindow()
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/main_window.py", line 801, in __init__
+    self.construireinterface()
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/main_window.py", line 866, in construireinterface
+    self._hover_poll.timeout.connect(self._sonder_hover_sidebar())
+AttributeError: 'MainWindow' object has no attribute '_sonder_hover_sidebar'
+2026-03-03 00:20:55 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:21:31 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:21:31 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:21:31 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:21:32 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:21:32 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:21:36 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 00:21:36 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 00:33:44 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:33:50 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:33:50 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:33:50 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:33:51 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:33:52 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:33:52 - nexa - CRITICAL - main.py:332 - Erreur fatale construction : 'MainWindow' object has no attribute '_sonder_hover_sidebar'
+Traceback (most recent call last):
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/main.py", line 126, in _construire_app
+    fenetre = MainWindow()
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/main_window.py", line 802, in __init__
+    self.construireinterface()
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/main_window.py", line 867, in construireinterface
+    self._hover_poll.timeout.connect(self._sonder_hover_sidebar)
+AttributeError: 'MainWindow' object has no attribute '_sonder_hover_sidebar'
+2026-03-03 00:33:52 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:34:21 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:34:21 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:34:21 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:34:24 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:34:25 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:34:28 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 00:34:28 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 00:35:13 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:35:55 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:35:55 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:35:55 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:35:57 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:35:57 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:36:00 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 00:36:01 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 00:36:21 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:36:25 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:36:25 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:36:25 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:36:26 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:36:27 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:36:29 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 00:36:30 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 00:36:33 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:43:33 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:43:33 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:43:33 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:43:36 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:43:36 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:43:40 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 00:43:40 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 00:43:53 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:44:02 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:44:02 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:44:02 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:44:04 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:44:04 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:44:07 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 00:44:07 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 00:52:18 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 00:52:26 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 00:52:26 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 00:52:26 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 00:52:27 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 00:52:28 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 00:52:30 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 00:52:31 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 02:27:30 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 02:27:46 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 02:27:46 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 02:27:46 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 02:27:47 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 02:27:48 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 02:27:50 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 02:27:51 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 02:32:45 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 02:32:50 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 02:32:50 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 02:32:50 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 02:32:52 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 02:32:52 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 02:32:55 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 02:32:56 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 09:45:43 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 09:45:51 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 09:45:51 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 09:45:51 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 09:45:53 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 09:45:53 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 09:45:56 - nexa - INFO - main.py:144 - Configuration des onglets...
+2026-03-03 09:45:57 - nexa - INFO - main.py:326 - Interface construite avec succès
+2026-03-03 09:52:00 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)
+2026-03-03 11:03:02 - nexa - INFO - main.py:19 - ============================================================
+2026-03-03 11:03:02 - nexa - INFO - main.py:20 - Démarrage de Nexa CRM
+2026-03-03 11:03:02 - nexa - INFO - main.py:21 - ============================================================
+2026-03-03 11:03:05 - nexa - INFO - main.py:57 - Initialisation de QApplication...
+2026-03-03 11:03:06 - nexa - INFO - main.py:125 - Construction de l'interface...
+2026-03-03 11:03:09 - nexa - CRITICAL - main.py:332 - Erreur fatale construction : No module named 'views.emails.fiche_email_view'
+Traceback (most recent call last):
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/main.py", line 137, in _construire_app
+    vue_boite_reception = BoiteReceptionView(parent=fenetre)
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/emails/boite_reception_view.py", line 187, in __init__
+    self._construire_ui()
+  File "/Users/CreepySensei/Desktop/Dev/Nexa/app/views/emails/boite_reception_view.py", line 200, in _construire_ui
+    from views.emails.fiche_email_view import FicheEmailView
+ModuleNotFoundError: No module named 'views.emails.fiche_email_view'
+2026-03-03 11:03:09 - nexa - INFO - main.py:339 - Fermeture de l'application (code: 0)

@@ -99,7 +99,7 @@ class VenteViewModel(QObject):
             self.erreur.emit(f"Erreur : {str(e)}")
             return None
 
-    def enregistrer_vente(self, client_id: int, produit_id: int, quantite: int, prix_unitaire: float, date_vente: str = None, notes: str = "") -> Optional[int]:
+    def enregistrer_vente(self, client_id: int, produit_id: int, quantite: int, prix_unitaire: float, date_vente: str = None, notes: str = "", transaction_id: str = None) -> Optional[int]:
         """Enregistre une vente.
         Calcule prix_total = quantite * prix_unitaire.
         Valide les entrées.
@@ -128,7 +128,8 @@ class VenteViewModel(QObject):
                 prix_unitaire=prix_unitaire,
                 prix_total=prix_total,
                 date_vente=date_vente,
-                notes=notes
+                notes=notes,
+                transaction_id=transaction_id,
             )
             self.vente_enregistree.emit(vente_id)
             return vente_id
@@ -174,3 +175,16 @@ class VenteViewModel(QObject):
         """Retourne le prix d'un produit."""
         produit = self.produit_model.obtenir_produit(produit_id)
         return produit['prix'] if produit else 0.0
+
+    # ------------------------------------------------------------------
+    # Transactions (historique)
+    # ------------------------------------------------------------------
+
+    def lister_transactions(self) -> list[dict]:
+        return self.vente_model.lister_transactions()
+
+    def obtenir_transaction(self, transaction_id: str) -> Optional[dict]:
+        return self.vente_model.obtenir_transaction(transaction_id)
+
+    def supprimer_transaction(self, transaction_id: str) -> bool:
+        return self.vente_model.supprimer_transaction(transaction_id)

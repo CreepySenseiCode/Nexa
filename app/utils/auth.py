@@ -47,7 +47,7 @@ def mot_de_passe_existe(db) -> bool:
     """
     try:
         resultat = db.fetchone(
-            "SELECT valeur FROM parametres WHERE cle = 'mot_de_passe_patron'"
+            "SELECT valeur FROM parametres WHERE cle = 'mot_de_passe_administratif'"
         )
         return resultat is not None and bool(resultat.get('valeur'))
     except Exception:

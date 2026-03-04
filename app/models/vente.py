@@ -38,6 +38,7 @@ class VenteModel(BaseModel):
         prix_total: float,
         date_vente: Optional[str] = None,
         notes: str = "",
+        transaction_id: Optional[str] = None,
     ) -> int:
         """Enregistre une nouvelle vente dans la base de données.
 
@@ -63,8 +64,8 @@ class VenteModel(BaseModel):
                 """
                 INSERT INTO ventes
                     (client_id, produit_id, quantite, prix_unitaire,
-                     prix_total, date_vente, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                     prix_total, date_vente, notes, transaction_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     client_id,
@@ -74,6 +75,7 @@ class VenteModel(BaseModel):
                     prix_total,
                     date_vente,
                     notes,
+                    transaction_id,
                 ),
             )
 
@@ -267,6 +269,99 @@ class VenteModel(BaseModel):
         except sqlite3.Error as e:
             logger.error("Erreur repartition categories client %s : %s", client_id, e)
             return []
+
+    # ------------------------------------------------------------------
+    # Listing général
+    # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Transactions (groupées par transaction_id)
+    # ------------------------------------------------------------------
+
+    def lister_transactions(self) -> list[dict]:
+        """Retourne les transactions groupées, ordre chronologique inverse."""
+        try:
+            return self.db.fetchall(
+                """
+                SELECT
+                    v.transaction_id,
+                    v.client_id,
+                    c.nom AS client_nom,
+                    c.prenom AS client_prenom,
+                    v.date_vente,
+                    v.notes,
+                    COUNT(*) AS nb_articles,
+                    GROUP_CONCAT(p.nom || ' x' || v.quantite, ', ')
+                        AS articles_resume,
+                    SUM(v.prix_total) AS total_transaction
+                FROM ventes v
+                JOIN clients c ON c.id = v.client_id
+                JOIN produits p ON p.id = v.produit_id
+                GROUP BY v.transaction_id
+                ORDER BY v.date_vente DESC
+                """
+            )
+        except sqlite3.Error as e:
+            logger.error("Erreur lister_transactions : %s", e)
+            return []
+
+    def obtenir_transaction(self, transaction_id: str) -> Optional[dict]:
+        """Retourne le détail complet d'une transaction."""
+        try:
+            articles = self.db.fetchall(
+                """
+                SELECT v.*, p.nom AS produit_nom, p.photo AS produit_photo
+                FROM ventes v
+                JOIN produits p ON p.id = v.produit_id
+                WHERE v.transaction_id = ?
+                ORDER BY v.id
+                """,
+                (transaction_id,),
+            )
+            if not articles:
+                return None
+
+            first = articles[0]
+            client = self.db.fetchone(
+                "SELECT * FROM clients WHERE id = ?",
+                (first["client_id"],),
+            )
+
+            code_promo = self.db.fetchone(
+                """
+                SELECT cr.code, cr.pourcentage
+                FROM utilisations_codes uc
+                JOIN codes_reduction cr ON cr.id = uc.code_id
+                WHERE uc.vente_id = ?
+                """,
+                (first["id"],),
+            )
+
+            return {
+                "transaction_id": transaction_id,
+                "client": client,
+                "articles": articles,
+                "date_vente": first["date_vente"],
+                "notes": first["notes"],
+                "total": sum(a["prix_total"] for a in articles),
+                "code_promo": code_promo,
+            }
+        except sqlite3.Error as e:
+            logger.error("Erreur obtenir_transaction %s : %s", transaction_id, e)
+            return None
+
+    def supprimer_transaction(self, transaction_id: str) -> bool:
+        """Supprime tous les articles d'une transaction."""
+        try:
+            self.db.execute(
+                "DELETE FROM ventes WHERE transaction_id = ?",
+                (transaction_id,),
+            )
+            logger.info("Transaction %s supprimée", transaction_id)
+            return True
+        except sqlite3.Error as e:
+            logger.error("Erreur supprimer_transaction %s : %s", transaction_id, e)
+            return False
 
     # ------------------------------------------------------------------
     # Listing général

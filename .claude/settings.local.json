@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(python -c:*)",
+      "Bash(timeout 5 python:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 list:*)",
+      "Bash(QT_QPA_PLATFORM=offscreen /Users/CreepySensei/Desktop/Dev/MailTo/app/venv/bin/python:*)",
+      "Bash(QT_QPA_PLATFORM=offscreen python3:*)",
+      "Bash(ls:*)",
+      "Bash(QT_QPA_PLATFORM=offscreen ./venv/bin/python:*)",
+      "Bash(./venv/bin/pip list:*)",
+      "Bash(./venv/bin/pip install:*)",
+      "Bash(./venv/bin/python:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(for f in app/views/boite_reception_view.py app/views/emailing_view.py app/views/historique_mails_view.py app/views/mails_enregistres_view.py app/views/parametres_view.py app/views/produits_view.py app/views/recherche_view.py app/views/statistiques_view.py app/views/vente_view.py)",
+      "Bash(do python3 -m py_compile \"$f\")",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(for f in app/models/client.py app/models/produit.py app/models/vente.py app/models/code_reduction.py app/models/centre_interet.py app/models/categorie_produit.py app/models/statistiques.py app/models/attribut_produit.py app/models/email_model.py app/models/email_recu.py app/models/parametres.py)",
+      "Bash(pip3 install:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(sqlite3:*)",
+      "Bash(/Users/CreepySensei/Desktop/Dev/MailTo/app/views/produit_card.py:*)",
+      "Bash(python:*)",
+      "Bash(git restore:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

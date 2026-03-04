@@ -1,0 +1,3 @@
+from views.clients.client_view import ClientView
+from views.clients.formulaire_client_base import FormulaireClientBase
+from views.clients.fiche_client_view import FicheClientView

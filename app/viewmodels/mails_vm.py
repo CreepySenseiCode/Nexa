@@ -22,10 +22,21 @@ class MailsViewModel(QObject):
         """Retourne un mail par ID."""
         return self.model.obtenir_mail(mail_id)
 
-    def creer_mail(self, nom: str) -> int:
+    def creer_mail(self, nom: str, objet: str = "", contenu_html: str = "",
+                   contenu_texte: str = "", type_mail: str = "template",
+                   pieces_jointes: str = "") -> int:
         """Cree un nouveau mail. Retourne l'ID ou leve une exception."""
-        result = self.model.creer_mail(nom)
+        result = self.model.creer_mail(
+            nom, objet, contenu_html, contenu_texte, type_mail, pieces_jointes
+        )
         self.mails_modifies.emit()
+        return result
+
+    def modifier_mail(self, mail_id: int, **kwargs) -> bool:
+        """Met a jour un mail."""
+        result = self.model.modifier_mail(mail_id, **kwargs)
+        if result:
+            self.mails_modifies.emit()
         return result
 
     def supprimer_mail(self, mail_id: int) -> bool:

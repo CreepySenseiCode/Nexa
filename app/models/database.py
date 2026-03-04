@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nom TEXT NOT NULL,
     prenom TEXT NOT NULL,
+    sexe TEXT,
     date_naissance TEXT,
     age INTEGER,
     adresse TEXT,
@@ -278,6 +279,58 @@ CREATE TABLE IF NOT EXISTS utilisations_codes (
     FOREIGN KEY (vente_id) REFERENCES ventes(id)
 );
 
+-- Table des commandes
+CREATE TABLE IF NOT EXISTS commandes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    date_commande TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_prevue TEXT NOT NULL,
+    heure_prevue TEXT,
+    statut TEXT DEFAULT 'en_attente',
+    total REAL DEFAULT 0.0,
+    notes TEXT,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+-- Articles d'une commande
+CREATE TABLE IF NOT EXISTS articles_commande (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    commande_id INTEGER NOT NULL,
+    produit_id INTEGER NOT NULL,
+    quantite INTEGER DEFAULT 1,
+    prix_unitaire REAL NOT NULL,
+    prix_total REAL NOT NULL,
+    FOREIGN KEY (commande_id) REFERENCES commandes(id) ON DELETE CASCADE,
+    FOREIGN KEY (produit_id) REFERENCES produits(id)
+);
+
+-- Catégories de tâches
+CREATE TABLE IF NOT EXISTS categories_taches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom TEXT NOT NULL UNIQUE,
+    couleur TEXT DEFAULT '#2196F3',
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table des tâches
+CREATE TABLE IF NOT EXISTS taches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titre TEXT NOT NULL,
+    description TEXT,
+    priorite INTEGER DEFAULT 5,
+    categorie_id INTEGER,
+    date_echeance TEXT,
+    heure_echeance TEXT,
+    terminee BOOLEAN DEFAULT 0,
+    visibilite TEXT DEFAULT 'tous',
+    commande_id INTEGER,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categorie_id) REFERENCES categories_taches(id),
+    FOREIGN KEY (commande_id) REFERENCES commandes(id)
+);
+
 -- Table des comptes email configurés
 CREATE TABLE IF NOT EXISTS comptes_email (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -311,6 +364,13 @@ CREATE INDEX IF NOT EXISTS idx_clients_centres_interet ON clients_centres_intere
 CREATE INDEX IF NOT EXISTS idx_utilisations_codes_client ON utilisations_codes(client_id);
 CREATE INDEX IF NOT EXISTS idx_utilisations_codes_code ON utilisations_codes(code_id);
 CREATE INDEX IF NOT EXISTS idx_historique_emails_mail ON historique_emails(mail_id);
+CREATE INDEX IF NOT EXISTS idx_commandes_client ON commandes(client_id);
+CREATE INDEX IF NOT EXISTS idx_commandes_date_prevue ON commandes(date_prevue);
+CREATE INDEX IF NOT EXISTS idx_commandes_statut ON commandes(statut);
+CREATE INDEX IF NOT EXISTS idx_articles_commande ON articles_commande(commande_id);
+CREATE INDEX IF NOT EXISTS idx_taches_categorie ON taches(categorie_id);
+CREATE INDEX IF NOT EXISTS idx_taches_date ON taches(date_echeance);
+CREATE INDEX IF NOT EXISTS idx_taches_commande ON taches(commande_id);
 """
 
 
@@ -319,7 +379,7 @@ CREATE INDEX IF NOT EXISTS idx_historique_emails_mail ON historique_emails(mail_
 # ============================================================================
 
 _DEFAULT_PARAMETRES: list[tuple] = [
-    ("mot_de_passe_patron", None, "texte", "Mot de passe du patron (hashé bcrypt)"),
+    ("mot_de_passe_administratif", None, "texte", "Mot de passe administratif (hashé bcrypt)"),
     ("mot_de_passe_actif", "0", "booleen", "Indique si la gestion par mot de passe est active"),
     ("email_recuperation", None, "email", "Email de récupération"),
     ("monnaie", "EUR", "texte", "Monnaie utilisée"),
@@ -582,6 +642,8 @@ class DatabaseManager:
             ("produits", "archive", "INTEGER DEFAULT 0"),
             ("produits", "photo", "TEXT"),
             ("mails_enregistres", "type", "TEXT DEFAULT 'template'"),
+            ("ventes", "transaction_id", "TEXT"),
+            ("clients", "sexe", "TEXT"),
         ]
         for table, colonne, type_col in migrations:
             try:
@@ -590,6 +652,16 @@ class DatabaseManager:
                 )
             except sqlite3.OperationalError:
                 pass  # La colonne existe déjà
+
+        # Backfill transaction_id : chaque ancienne ligne = sa propre transaction
+        try:
+            conn.execute(
+                "UPDATE ventes SET transaction_id = CAST(id AS TEXT) "
+                "WHERE transaction_id IS NULL"
+            )
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
 
         # Migration : Colonnes manquantes sur categories_produits
         cat_migrations = [
@@ -692,6 +764,101 @@ class DatabaseManager:
                     )
         except Exception:
             # Table n'existe pas encore, elle sera créée par CREATE TABLE IF NOT EXISTS
+            pass
+
+        # Migration : colonne couleur sur taches
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN couleur TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # Migration : sous-tâches
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN parent_id INTEGER REFERENCES taches(id)")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN niveau INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+
+        # Migration : récurrence
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN type_recurrence TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN intervalle_recurrence INTEGER DEFAULT 1")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN date_fin_recurrence TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # Migration : soft-delete
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN supprimee BOOLEAN DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN date_suppression TIMESTAMP")
+        except sqlite3.OperationalError:
+            pass
+
+        # Migration : validation admin des missions
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN validee_admin BOOLEAN DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+
+        # Index sous-tâches
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_taches_parent ON taches(parent_id)")
+        except sqlite3.OperationalError:
+            pass
+
+        # Migration : association tâches → client / vente
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN client_id INTEGER REFERENCES clients(id)")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN vente_id INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN cochee INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN produit_id INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN code_promo_id INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE taches ADD COLUMN evenement_id INTEGER")
+        except sqlite3.OperationalError:
+            pass
+
+        # Table événements calendrier
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS evenements_calendrier (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL,
+                description TEXT,
+                couleur TEXT DEFAULT '#FF9800',
+                date_debut TEXT NOT NULL,
+                date_fin TEXT NOT NULL,
+                date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_evenements_dates ON evenements_calendrier(date_debut, date_fin)")
+        except sqlite3.OperationalError:
             pass
 
     def _inserer_parametres_par_defaut(self) -> None:

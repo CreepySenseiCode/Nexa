@@ -22,8 +22,9 @@ from PySide6.QtGui import QColor, QPalette, QLinearGradient, QPainter
 
 
 class AnimatedButton(QPushButton):
-    def __init__(self, text):
-        super().__init__(text)
+
+    def __init__(self, text, parent=None):  # ← parent=None par défaut
+        super().__init__(text, parent)
         self._scale = 1.0
         self._hovered = False
         self._pressed = False
@@ -99,16 +100,26 @@ class ModernSegmentedControl(QWidget):
 
     selectionChanged = Signal(int)
 
-    def __init__(self, labels):
+    def __init__(self, labels, initial_index=0, style="default"):
         super().__init__()
 
-        self._visual_height = 40
-        self._shadow_margin = 10
+        self._style = style
+        if style == "compact":
+            self._visual_height = 32
+            self._shadow_margin = 8
+            self._font_size = 12
+            self._padding = 14
+        else:
+            self._visual_height = 40
+            self._shadow_margin = 10
+            self._font_size = 15
+            self._padding = 24
 
         self.setFixedHeight(self._visual_height)
 
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._is_animating = False
+        self._indicator_ready = False
 
         palette = QApplication.palette()
         self.is_dark = palette.color(QPalette.Window).lightness() < 128
@@ -120,6 +131,12 @@ class ModernSegmentedControl(QWidget):
             self.indicator_color = "#ffffff"
             self.active_text = "#0f172a"
             self.inactive_text = "#e2e8f0"
+        elif style == "compact":
+            self.gradient_start = "#60a5fa"
+            self.gradient_end = "#3b82f6"
+            self.indicator_color = "#ffffff"
+            self.active_text = "#3b82f6"
+            self.inactive_text = "#ffffff"
         else:
             self.gradient_start = "#3b82f6"
             self.gradient_end = "#2563eb"
@@ -146,9 +163,8 @@ class ModernSegmentedControl(QWidget):
             fm = btn.fontMetrics()
             text_width = fm.horizontalAdvance(text)
 
-            padding = 24
             btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
-            btn.setMinimumWidth(text_width + padding)
+            btn.setMinimumWidth(text_width + self._padding)
 
             btn.setStyleSheet(
                 f"""
@@ -157,7 +173,7 @@ class ModernSegmentedControl(QWidget):
                     background: transparent;
                     color: {self.inactive_text};
                     font-weight: 600;
-                    font-size: 15px;
+                    font-size: {self._font_size}px;
                 }}
 
                 QPushButton:checked {{
@@ -182,7 +198,7 @@ class ModernSegmentedControl(QWidget):
         self.indicator.setGraphicsEffect(self.glow)
 
         self._pos = 0
-        self.current_index = -1
+        self.current_index = initial_index
         self.anim = QPropertyAnimation(self, b"indicator_pos")
         self.width_anim = QPropertyAnimation(self, b"indicator_width")
 
@@ -201,10 +217,11 @@ class ModernSegmentedControl(QWidget):
         self.anim_group.addAnimation(self.anim)
         self.anim_group.addAnimation(self.width_anim)
 
-        QTimer.singleShot(0, lambda: self.select(0))
-
         self.anim_group.finished.connect(self._apply_styles)
         self.anim_group.finished.connect(self._on_anim_finished)
+
+        # Appliquer les styles texte immédiatement (pas besoin de layout)
+        self._apply_styles()
 
         self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
 
@@ -223,32 +240,27 @@ class ModernSegmentedControl(QWidget):
         painter.drawRoundedRect(self.rect(), 20, 20)
 
     def resizeEvent(self, event):
-        self.update_indicator_geometry()
         super().resizeEvent(event)
+        # Le resizeEvent est le premier moment fiable où les boutons ont
+        # leur géométrie finale. On place l'indicateur ici.
+        self._place_indicator()
 
-    def update_indicator_geometry(self):
-
-        if self._is_animating:
+    def _place_indicator(self):
+        """Positionne l'indicateur directement (sans animation)."""
+        if self.current_index < 0 or self.current_index >= len(self.buttons):
             return
 
         btn = self.buttons[self.current_index]
+        if btn.width() == 0:
+            return
 
-        # largeur réelle du texte
         fm = btn.fontMetrics()
         text_width = fm.horizontalAdvance(btn.text())
-
-        padding = 24  # espace autour du texte
-        indicator_width = text_width + padding
-
+        indicator_width = text_width + self._padding
         height = self._visual_height - 14
 
-        # centrer l'indicateur dans le bouton
-        btn_rect = btn.geometry()
-        btn_x = btn_rect.left()
-        btn_width = btn_rect.width()
-
+        btn_x = btn.geometry().left()
         btn_width = btn.width()
-
         x = btn_x + (btn_width - indicator_width) / 2
 
         self.indicator.setGeometry(
@@ -265,26 +277,33 @@ class ModernSegmentedControl(QWidget):
         """
         )
 
+        self._indicator_ready = True
+
     def select(self, index):
 
         if index == self.current_index:
             return
 
+        old_index = self.current_index
         self.current_index = index
 
         btn = self.buttons[index]
 
+        # Si l'indicateur n'est pas encore prêt (premier affichage),
+        # juste mettre à jour les styles. Le resizeEvent placera l'indicateur.
+        if not self._indicator_ready or btn.width() == 0:
+            self._apply_styles()
+            return
+
+        # Animation normale (clic utilisateur)
         fm = btn.fontMetrics()
         text_width = fm.horizontalAdvance(btn.text())
-        padding = 24
-        indicator_width = text_width + padding
+        indicator_width = text_width + self._padding
 
         btn_x = btn.x()
         btn_width = btn.width()
 
         target_x = btn_x + (btn_width - indicator_width) / 2
-
-        current_width = self.indicator.width()
 
         if self.anim_group.state() == QParallelAnimationGroup.Running:
             self.anim_group.stop()
@@ -294,7 +313,8 @@ class ModernSegmentedControl(QWidget):
         self.anim.setStartValue(self.indicator.x())
         self.anim.setEndValue(target_x)
 
-        self.width_anim.setStartValue(self.indicator.width())
+        start_width = indicator_width * 0.40
+        self.width_anim.setStartValue(start_width)
         self.width_anim.setEndValue(indicator_width)
 
         self._is_animating = True
@@ -305,31 +325,7 @@ class ModernSegmentedControl(QWidget):
 
         self.selectionChanged.emit(index)
 
-        for i, btn in enumerate(self.buttons):
-            if i == index:
-                btn.setStyleSheet(
-                    f"""
-                    QPushButton {{
-                        border: none;
-                        background: transparent;
-                        color: {self.active_text};
-                        font-weight: 700;
-                        font-size: 15px;
-                    }}
-                """
-                )
-            else:
-                btn.setStyleSheet(
-                    f"""
-                    QPushButton {{
-                        border: none;
-                        background: transparent;
-                        color: {self.inactive_text};
-                        font-weight: 600;
-                        font-size: 15px;
-                    }}
-                """
-                )
+        self._apply_styles()
 
     def get_indicator_pos(self):
         return self._pos
@@ -367,7 +363,7 @@ class ModernSegmentedControl(QWidget):
                         background: transparent;
                         color: {self.active_text};
                         font-weight: 700;
-                        font-size: 15px;
+                        font-size: {self._font_size}px;
                     }}
                     """
                 )
@@ -379,7 +375,7 @@ class ModernSegmentedControl(QWidget):
                         background: transparent;
                         color: {self.inactive_text};
                         font-weight: 600;
-                        font-size: 15px;
+                        font-size: {self._font_size}px;
                     }}
                     """
                 )

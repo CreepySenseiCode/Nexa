@@ -141,6 +141,71 @@ class CodesPromoViewModel(QObject):
             self.erreur.emit(f"Erreur lors du chargement des codes : {str(e)}")
             return []
 
+    def obtenir_code(self, code_id: int) -> dict:
+        """Retourne les détails d'un code promo par son id."""
+        try:
+            return self.code_reduction_model.obtenir_code(code_id)
+        except Exception as e:
+            self.erreur.emit(f"Erreur : {str(e)}")
+            return {}
+
+    def obtenir_stats_code(self, code_id: int) -> dict:
+        """Retourne les stats d'utilisation d'un code (économies générées)."""
+        try:
+            from models.database import get_db
+            db = get_db()
+            row = db.fetchone(
+                """SELECT SUM(v.prix_total * cr.pourcentage / 100.0) AS total_economie
+                   FROM utilisations_codes uc
+                   JOIN ventes v ON v.id = uc.vente_id
+                   JOIN codes_reduction cr ON cr.id = uc.code_id
+                   WHERE uc.code_id = ?""",
+                (code_id,)
+            )
+            return {"total_economie": (row["total_economie"] or 0.0) if row else 0.0}
+        except Exception:
+            return {"total_economie": 0.0}
+
+    def obtenir_historique_utilisation(self, code_id: int) -> list[dict]:
+        """Retourne le nombre d'utilisations par jour pour le graphique."""
+        try:
+            from models.database import get_db
+            db = get_db()
+            return db.fetchall(
+                """SELECT DATE(date_utilisation) AS date,
+                          COUNT(*) AS nb_utilisations
+                   FROM utilisations_codes
+                   WHERE code_id = ?
+                   GROUP BY DATE(date_utilisation)
+                   ORDER BY date""",
+                (code_id,)
+            )
+        except Exception:
+            return []
+
+    def obtenir_achats_code(self, code_id: int) -> list[dict]:
+        """Retourne la liste des achats effectués avec ce code."""
+        try:
+            from models.database import get_db
+            db = get_db()
+            rows = db.fetchall(
+                """SELECT c.nom || ' ' || c.prenom AS client_nom,
+                          uc.date_utilisation AS date,
+                          uc.vente_id AS commande_id,
+                          v.prix_total AS montant_total,
+                          ROUND(v.prix_total * cr.pourcentage / 100.0, 2) AS montant_reduction
+                   FROM utilisations_codes uc
+                   JOIN clients c ON c.id = uc.client_id
+                   JOIN ventes v ON v.id = uc.vente_id
+                   JOIN codes_reduction cr ON cr.id = uc.code_id
+                   WHERE uc.code_id = ?
+                   ORDER BY uc.date_utilisation DESC""",
+                (code_id,)
+            )
+            return rows
+        except Exception:
+            return []
+
     # ------------------------------------------------------------------ #
     #                       Verification (Vendeur)                        #
     # ------------------------------------------------------------------ #

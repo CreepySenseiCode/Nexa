@@ -1,0 +1,5 @@
+from views.emails.emailing_view import EmailingView
+from views.emails.emails_unifie_view import EmailsUnifieView
+from views.emails.boite_reception_view import BoiteReceptionView
+from views.emails.mails_enregistres_view import MailsEnregistresView
+from views.emails.historique_mails_view import HistoriqueMailsView
